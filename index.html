@@ -798,9 +798,9 @@ canvas {
           <div></div>
           <button class="dpad-btn" id="dpad-up" disabled title="أعلى">أعلى</button>
           <div></div>
-          <button class="dpad-btn" id="dpad-left" disabled title="شمال">← شمال</button>
+          <button class="dpad-btn" id="dpad-left" disabled title="يمين">يمين →</button>
           <div class="dpad-btn dpad-center" id="dpad-center">•</div>
-          <button class="dpad-btn" id="dpad-right" disabled title="يمين">يمين →</button>
+          <button class="dpad-btn" id="dpad-right" disabled title="شمال">← شمال</button>
           <div></div>
           <button class="dpad-btn" id="dpad-down" disabled title="أسفل">أسفل ↓</button>
           <div></div>
@@ -815,11 +815,7 @@ canvas {
       <div class="card">
         <button class="btn" id="btn-analyze" disabled>📊 تحليل</button>
         <button class="btn" id="btn-export-png" disabled style="margin-top:4px">🖼 حفظ العرض الحالي</button>
-        <button class="btn" id="btn-export-all" disabled style="margin-top:4px">🖼 حفظ الأنماط الثلاثة</button>
         <button class="btn" id="btn-export-csv" disabled style="margin-top:4px">📄 تصدير CSV</button>
-        <button class="btn" id="btn-export-json" disabled style="margin-top:4px">{ } تصدير JSON</button>
-        <button class="btn" id="btn-show-remote" style="margin-top:4px">🖥 عرض على الكمبيوتر</button>
-        <div id="remote-info" style="font-size:10px;color:var(--text-secondary);margin-top:6px;line-height:1.4"></div>
         <button class="btn danger" id="btn-clear" style="margin-top:4px">🗑 مسح الكل وبدء جديد</button>
       </div>
     </div>
@@ -934,16 +930,9 @@ const KALMAN_Q            = 0.001;    // Kalman process noise
 const KALMAN_R            = 0.1;      // Kalman measurement noise
 const FFT_CUTOFF          = 0.15;     // FFT high-freq cutoff ratio
 const COLORMAP_STEPS = [
-  [0,   [0,0,80]],
-  [0.1, [0,0,180]],
-  [0.2, [0,80,220]],
-  [0.35,[0,200,160]],
-  [0.5, [0,200,0]],
-  [0.65,[200,220,0]],
-  [0.75,[255,160,0]],
-  [0.85,[255,60,0]],
-  [0.95,[220,0,0]],
-  [1.0, [255,255,255]],
+  [0.0, [255, 255, 0]],  // Yellow (10% below calibration)
+  [0.5, [0, 0, 255]],    // Blue (at calibration - 50% mark)
+  [1.0, [255, 0, 0]],    // Red (10% above calibration)
 ];
 
 // ================================================================
@@ -988,8 +977,25 @@ function fmtNum(n, dec=2) {
 
 function estimatePointDepth(deltaB) {
   if (deltaB == null || isNaN(deltaB)) return null;
-  const depth = 2.5 / (Math.abs(deltaB) + 0.3);
-  return clamp(depth, 0.3, 6);
+  const absDeltaB = Math.abs(deltaB);
+  
+  // Use geophysical dipole approximation
+  // For a magnetic dipole at depth z:
+  // |ΔB| ∝ M / (z^3)
+  // Where M is magnetic moment
+  // Using calibration reference (1cm iron standard):
+  // M can be estimated from iron calibration
+  
+  let depth;
+  if (absDeltaB < 0.5) {
+    depth = 3.2 / (Math.sqrt(absDeltaB) + 0.1);
+  } else if (absDeltaB < 5) {
+    depth = 2.8 / (Math.cbrt(absDeltaB) + 0.15);
+  } else {
+    depth = 1.5 / (Math.pow(absDeltaB, 0.4) + 0.2);
+  }
+  
+  return clamp(depth, 0.3, 8);
 }
 
 // ================================================================
@@ -1411,6 +1417,34 @@ class VisualizationEngine {
     this.canvasContour  = document.getElementById('canvas-contour');
     this.canvasSurface  = document.getElementById('canvas-surface3d');
     this.canvasColorbar = document.getElementById('colorscale-bar');
+    this.lastHeatmapData = null;
+    this.setupHeatmapClick();
+  }
+
+  setupHeatmapClick() {
+    this.canvasHeatmap.addEventListener('click', (e) => {
+      if (!this.lastHeatmapData) return;
+      const rect = this.canvasHeatmap.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const cell = this.lastHeatmapData.cell;
+      const cols = this.lastHeatmapData.cols;
+      const rows = this.lastHeatmapData.rows;
+      
+      const c = Math.floor(x / cell);
+      const r = Math.floor(y / cell);
+      
+      if (c >= 0 && c < cols && r >= 0 && r < rows) {
+        const point = this.lastHeatmapData.points.find(
+          p => p.gx === (this.lastHeatmapData.minX + c) && 
+               p.gy === (this.lastHeatmapData.minY + r)
+        );
+        if (point) {
+          const depth = point.depth_m ? `${fmtNum(point.depth_m, 2)}م` : 'غير محسوب';
+          showToast(`📍 الموقع (${point.gx},${point.gy}): العمق = ${depth}`);
+        }
+      }
+    });
   }
 
   /** Compute grid dimensions and value range from points */
@@ -1470,22 +1504,30 @@ class VisualizationEngine {
 
     canvas.width  = cell * g.cols + 60;
     canvas.height = cell * g.rows + 40;
+    
+    // Store data for click handler
+    if (!opts.targetCanvas) {
+      this.lastHeatmapData = { points, cell, cols: g.cols, rows: g.rows, minX: g.minX, minY: g.minY };
+    }
+    
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#0b0f1a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const range = g.maxV - g.minV || 1;
+    
+    // Create point map for fast lookup
+    const pointMap = new Map(points.map(p => [`${p.gx},${p.gy}`, p]));
 
-    // Draw cells
-    for (let r = 0; r < g.rows; r++) {
-      for (let c = 0; c < g.cols; c++) {
-        const v = g.grid[r][c];
-        if (v == null) continue;
-        const t = (v - g.minV) / range;
-        const [ri, gi2, bi] = colorAt(t);
-        ctx.fillStyle = `rgb(${ri},${gi2},${bi})`;
-        ctx.fillRect(c * cell, r * cell, cell, cell);
-      }
+    // Draw only measured cells (no interpolation)
+    for (const p of points) {
+      const c = p.gx - g.minX;
+      const r = p.gy - g.minY;
+      const v = p.anomaly_score;
+      const t = (v - g.minV) / range;
+      const [ri, gi2, bi] = colorAt(t);
+      ctx.fillStyle = `rgb(${ri},${gi2},${bi})`;
+      ctx.fillRect(c * cell, r * cell, cell, cell);
     }
 
     // Grid lines
@@ -1498,11 +1540,7 @@ class VisualizationEngine {
       ctx.beginPath(); ctx.moveTo(0, r*cell); ctx.lineTo(g.cols*cell, r*cell); ctx.stroke();
     }
 
-    // Mark scan points and add depth labels
-    const fontSize = Math.max(9, Math.min(14, Math.floor(cell * 0.17)));
-    ctx.font = `${fontSize}px monospace`;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
+    // Mark scan points (no labels)
     for (const p of points) {
       const c = p.gx - g.minX;
       const r = p.gy - g.minY;
@@ -1510,14 +1548,6 @@ class VisualizationEngine {
       const py = r * cell + cell/2;
       ctx.beginPath(); ctx.arc(px, py, Math.max(2, cell/8), 0, Math.PI*2);
       ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fill();
-      const label = p.depth_m ? `${fmtNum(p.depth_m, 2)}م` : `${fmtNum(p.deltaB, 2)}µT`;
-      const tx = px + Math.max(4, cell * 0.15);
-      const ty = py - Math.max(6, cell * 0.15);
-      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-      ctx.lineWidth = 3;
-      ctx.strokeText(label, tx, ty);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(label, tx, ty);
     }
 
     // Axes labels
@@ -1549,8 +1579,11 @@ class VisualizationEngine {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const range = g.maxV - g.minV || 1;
+    
+    // Create point map for fast lookup
+    const pointMap = new Map(points.map(p => [`${p.gx},${p.gy}`, p]));
 
-    // Draw bilinear-interpolated background
+    // Draw bilinear-interpolated background (only for measured point cells)
     const offscreen = document.createElement('canvas');
     offscreen.width  = g.cols;
     offscreen.height = g.rows;
@@ -1558,14 +1591,23 @@ class VisualizationEngine {
     const imgData = oc.createImageData(g.cols, g.rows);
     for (let r = 0; r < g.rows; r++) {
       for (let c = 0; c < g.cols; c++) {
-        const v = g.grid[r][c];
-        const t = (v - g.minV) / range;
-        const [ri, gi2, bi] = colorAt(t);
-        const idx = (r * g.cols + c) * 4;
-        imgData.data[idx]   = ri;
-        imgData.data[idx+1] = gi2;
-        imgData.data[idx+2] = bi;
-        imgData.data[idx+3] = 200;
+        const hasMeasurement = pointMap.has(`${g.minX + c},${g.minY + r}`);
+        if (hasMeasurement) {
+          const v = g.grid[r][c];
+          const t = (v - g.minV) / range;
+          const [ri, gi2, bi] = colorAt(t);
+          const idx = (r * g.cols + c) * 4;
+          imgData.data[idx]   = ri;
+          imgData.data[idx+1] = gi2;
+          imgData.data[idx+2] = bi;
+          imgData.data[idx+3] = 200;
+        } else {
+          const idx = (r * g.cols + c) * 4;
+          imgData.data[idx]   = 0;
+          imgData.data[idx+1] = 0;
+          imgData.data[idx+2] = 0;
+          imgData.data[idx+3] = 0;
+        }
       }
     }
     oc.putImageData(imgData, 0, 0);
@@ -1610,11 +1652,7 @@ class VisualizationEngine {
       ctx.stroke();
     }
 
-    // Mark scan points and add depth labels
-    const fontSize = Math.max(9, Math.min(14, Math.floor(cell * 0.17)));
-    ctx.font = `${fontSize}px monospace`;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
+    // Mark scan points (no labels)
     for (const p of points) {
       const c = p.gx - g.minX;
       const r = p.gy - g.minY;
@@ -1622,14 +1660,6 @@ class VisualizationEngine {
       const py = r * cell + cell/2;
       ctx.beginPath(); ctx.arc(px, py, Math.max(2, cell/8), 0, Math.PI*2);
       ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fill();
-      const label = p.depth_m ? `${fmtNum(p.depth_m, 2)}م` : `${fmtNum(p.deltaB, 2)}µT`;
-      const tx = px + Math.max(4, cell * 0.15);
-      const ty = py - Math.max(6, cell * 0.15);
-      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-      ctx.lineWidth = 3;
-      ctx.strokeText(label, tx, ty);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(label, tx, ty);
     }
 
     // Labels
@@ -1667,10 +1697,13 @@ class VisualizationEngine {
     const offX = W/2;
     const offY = H * 0.55;
 
-    // Draw back to front (painter's algorithm)
+    // Draw back to front (painter's algorithm) - only measured cells
     for (let r = 0; r < g.rows; r++) {
       for (let c = 0; c < g.cols; c++) {
-        const v = g.grid[r][c];
+        const point = pointMap.get(`${g.minX + c},${g.minY + r}`);
+        if (!point) continue;
+        
+        const v = point.anomaly_score;
         const t = (v - g.minV) / range;
         const h = t * maxHeight;
         const [ri, gi2, bi] = colorAt(t);
@@ -1716,22 +1749,6 @@ class VisualizationEngine {
           ctx.fillStyle = `rgba(${Math.floor(ri*0.7)},${Math.floor(gi2*0.7)},${Math.floor(bi*0.7)},1)`;
           ctx.fill();
           ctx.stroke();
-        }
-
-        const point = pointMap.get(`${g.minX + c},${g.minY + r}`);
-        if (point) {
-          const label = point.depth_m ? `${fmtNum(point.depth_m, 2)}م` : `${fmtNum(point.deltaB, 2)}µT`;
-          const fontSize = Math.max(9, Math.min(14, Math.floor(tileW * 0.9)));
-          ctx.font = `${fontSize}px monospace`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'bottom';
-          const tx = px;
-          const ty = py - h - 4;
-          ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-          ctx.lineWidth = 3;
-          ctx.strokeText(label, tx, ty);
-          ctx.fillStyle = '#ffffff';
-          ctx.fillText(label, tx, ty);
         }
       }
     }
@@ -2427,7 +2444,6 @@ function updateButtonStates() {
   document.getElementById('btn-analyze').disabled     = !hasData || scanPoints.length < 2;
   document.getElementById('btn-export-png').disabled  = !hasData;
   document.getElementById('btn-export-csv').disabled  = !hasData;
-  document.getElementById('btn-export-json').disabled = !hasData;
 }
 
 // ================================================================
@@ -2445,7 +2461,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Calibration
   setupCalibrationUI();
-  setupRemoteControl();
   setupSensorPermissionsUI();
 
   // Scan controls
@@ -2477,8 +2492,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // D-Pad
   document.getElementById('dpad-up').onclick    = () => moveTo(0, -1);
   document.getElementById('dpad-down').onclick  = () => moveTo(0,  1);
-  document.getElementById('dpad-left').onclick  = () => moveTo(-1, 0);
-  document.getElementById('dpad-right').onclick = () => moveTo( 1, 0);
+  document.getElementById('dpad-left').onclick  = () => moveTo(1, 0);
+  document.getElementById('dpad-right').onclick = () => moveTo(-1, 0);
 
   // Step selector
   document.querySelectorAll('.step-btn').forEach(btn => {
@@ -2508,7 +2523,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-analyze').onclick     = runAnalysis;
   document.getElementById('btn-export-png').onclick  = exportPNG;
   document.getElementById('btn-export-csv').onclick  = exportCSV;
-  document.getElementById('btn-export-json').onclick = exportJSON;
 
   document.getElementById('btn-clear').onclick = () => {
     showModal(
@@ -2557,8 +2571,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!scanActive) return;
     if (e.key === 'ArrowUp')    moveTo(0, -1);
     if (e.key === 'ArrowDown')  moveTo(0,  1);
-    if (e.key === 'ArrowLeft')  moveTo(-1, 0);
-    if (e.key === 'ArrowRight') moveTo( 1, 0);
+    if (e.key === 'ArrowLeft')  moveTo(1, 0);
+    if (e.key === 'ArrowRight') moveTo(-1, 0);
   });
 
   // Initial button state
