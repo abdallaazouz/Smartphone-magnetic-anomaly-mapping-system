@@ -416,17 +416,16 @@ canvas {
   max-height: 100%;
 }
 #canvas-overlay-info {
-  position: absolute;
-  top: 10px; right: 10px; left: auto;
-  background: rgba(11,15,26,0.85);
+  position: relative;
+  margin: 12px 12px 0;
+  background: rgba(11,15,26,0.95);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 7px 10px;
+  padding: 10px 14px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-secondary);
   line-height: 1.7;
-  pointer-events: none;
   text-align: right;
   direction: rtl;
 }
@@ -799,11 +798,11 @@ canvas {
           <div></div>
           <button class="dpad-btn" id="dpad-up" disabled title="أعلى">أعلى</button>
           <div></div>
-          <button class="dpad-btn" id="dpad-left" disabled title="شمال">شمال</button>
+          <button class="dpad-btn" id="dpad-left" disabled title="شمال">← شمال</button>
           <div class="dpad-btn dpad-center" id="dpad-center">•</div>
-          <button class="dpad-btn" id="dpad-right" disabled title="يمين">يمين</button>
+          <button class="dpad-btn" id="dpad-right" disabled title="يمين">يمين →</button>
           <div></div>
-          <button class="dpad-btn" id="dpad-down" disabled title="أسفل">أسفل</button>
+          <button class="dpad-btn" id="dpad-down" disabled title="أسفل">أسفل ↓</button>
           <div></div>
         </div>
         <div class="pos-info" id="pos-info">الموقع: <strong>0, 0</strong></div>
@@ -815,7 +814,8 @@ canvas {
       <div class="section-label">الإجراءات</div>
       <div class="card">
         <button class="btn" id="btn-analyze" disabled>📊 تحليل</button>
-        <button class="btn" id="btn-export-png" disabled style="margin-top:4px">🖼 تصدير PNG</button>
+        <button class="btn" id="btn-export-png" disabled style="margin-top:4px">🖼 حفظ العرض الحالي</button>
+        <button class="btn" id="btn-export-all" disabled style="margin-top:4px">🖼 حفظ الأنماط الثلاثة</button>
         <button class="btn" id="btn-export-csv" disabled style="margin-top:4px">📄 تصدير CSV</button>
         <button class="btn" id="btn-export-json" disabled style="margin-top:4px">{ } تصدير JSON</button>
         <button class="btn" id="btn-show-remote" style="margin-top:4px">🖥 عرض على الكمبيوتر</button>
@@ -861,15 +861,15 @@ canvas {
       <canvas id="canvas-contour"  style="display:none"></canvas>
       <canvas id="canvas-surface3d" style="display:none"></canvas>
 
-      <div id="canvas-overlay-info" style="display:none">
-        النقاط: <span id="oi-pts">0</span> |
-        الشبكة: <span id="oi-grid">0×0</span> |
-        أقصى ΔB: <span id="oi-dbmax">0</span> µT |
-        الخطوة: <span id="oi-step">—</span>م
-      </div>
-
       <div id="scan-timer">MEASURING: <span id="timer-val">10</span>s</div>
       <div class="measuring-label" id="measuring-label">● ACQUIRING DATA…</div>
+    </div>
+
+    <div id="canvas-overlay-info" style="display:none">
+      النقاط: <span id="oi-pts">0</span> |
+      الشبكة: <span id="oi-grid">0×0</span> |
+      أقصى ΔB: <span id="oi-dbmax">0</span> µT |
+      الخطوة: <span id="oi-step">—</span>م
     </div>
 
     <!-- Color scale -->
@@ -984,6 +984,12 @@ function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function fmtNum(n, dec=2) {
   if (n == null || isNaN(n)) return '—';
   return n.toFixed(dec);
+}
+
+function estimatePointDepth(deltaB) {
+  if (deltaB == null || isNaN(deltaB)) return null;
+  const depth = 2.5 / (Math.abs(deltaB) + 0.3);
+  return clamp(depth, 0.3, 6);
 }
 
 // ================================================================
@@ -1298,6 +1304,7 @@ class AnalysisEngine {
     const maxDB  = Math.max(...deltas);
     const threshold = meanScore + 0.5 * (maxScore - meanScore);
     const anomPoints = points.filter(p => p.anomaly_score >= threshold);
+    const clusters = this._clusterAnomalies(anomPoints, stepSize);
 
     // Estimate anomaly area (count anomalous cells × step²)
     const area = anomPoints.length * stepSize * stepSize;
@@ -1341,7 +1348,57 @@ class AnalysisEngine {
       confidence:   (confidence * 100).toFixed(0),
       peakAt:       peak ? `(${peak.gx}, ${peak.gy})` : '—',
       snr:          snr.toFixed(1),
+      clusters,
     };
+  }
+
+  _clusterAnomalies(points, stepSize) {
+    if (!points.length) return [];
+    const index = new Map(points.map(p => [`${p.gx},${p.gy}`, p]));
+    const visited = new Set();
+    const clusters = [];
+    const neighbors = [[1,0],[-1,0],[0,1],[0,-1]];
+
+    for (const point of points) {
+      const key = `${point.gx},${point.gy}`;
+      if (visited.has(key)) continue;
+      const queue = [point];
+      const cluster = [];
+      visited.add(key);
+      while (queue.length) {
+        const current = queue.pop();
+        cluster.push(current);
+        for (const [dx, dy] of neighbors) {
+          const neighbourKey = `${current.gx + dx},${current.gy + dy}`;
+          if (!visited.has(neighbourKey) && index.has(neighbourKey)) {
+            visited.add(neighbourKey);
+            queue.push(index.get(neighbourKey));
+          }
+        }
+      }
+      const xs = cluster.map(p => p.gx);
+      const ys = cluster.map(p => p.gy);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      const width = (maxX - minX + 1) * stepSize;
+      const height = (maxY - minY + 1) * stepSize;
+      const halfWidth = Math.sqrt(width*width + height*height) * 0.5;
+      const clusterDepth = clamp(halfWidth, 0.2, 10);
+      const maxDelta = Math.max(...cluster.map(p => Math.abs(p.deltaB)));
+      clusters.push({
+        id: clusters.length + 1,
+        pointCount: cluster.length,
+        area: (cluster.length * stepSize * stepSize).toFixed(2),
+        width: width.toFixed(2),
+        height: height.toFixed(2),
+        depth: clusterDepth.toFixed(2),
+        center: `(${((minX + maxX)/2).toFixed(1)}, ${((minY + maxY)/2).toFixed(1)})`,
+        maxDeltaB: maxDelta.toFixed(2),
+      });
+    }
+    return clusters;
   }
 }
 
@@ -1399,13 +1456,13 @@ class VisualizationEngine {
   }
 
   /** Draw heat map using canvas 2D */
-  renderHeatmap(points, stepSize) {
+  renderHeatmap(points, stepSize, opts = {}) {
     const g = this._buildGrid(points, stepSize);
     if (!g) return;
-    const canvas = this.canvasHeatmap;
-    const container = canvas.parentElement;
-    const W = container.offsetWidth  || 600;
-    const H = (container.offsetHeight || 400) - 40;
+    const canvas = opts.targetCanvas || this.canvasHeatmap;
+    const container = opts.targetCanvas ? null : canvas.parentElement;
+    const W = opts.width || container?.offsetWidth || 600;
+    const H = opts.height || ((container?.offsetHeight || 400) - 40);
 
     const cellW = Math.floor(W / g.cols);
     const cellH = Math.floor(H / g.rows);
@@ -1441,14 +1498,26 @@ class VisualizationEngine {
       ctx.beginPath(); ctx.moveTo(0, r*cell); ctx.lineTo(g.cols*cell, r*cell); ctx.stroke();
     }
 
-    // Mark scan points
+    // Mark scan points and add depth labels
+    const fontSize = Math.max(9, Math.min(14, Math.floor(cell * 0.17)));
+    ctx.font = `${fontSize}px monospace`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
     for (const p of points) {
       const c = p.gx - g.minX;
       const r = p.gy - g.minY;
       const px = c * cell + cell/2;
       const py = r * cell + cell/2;
       ctx.beginPath(); ctx.arc(px, py, Math.max(2, cell/8), 0, Math.PI*2);
-      ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fill();
+      const label = p.depth_m ? `${fmtNum(p.depth_m, 2)}م` : `${fmtNum(p.deltaB, 2)}µT`;
+      const tx = px + Math.max(4, cell * 0.15);
+      const ty = py - Math.max(6, cell * 0.15);
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.lineWidth = 3;
+      ctx.strokeText(label, tx, ty);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(label, tx, ty);
     }
 
     // Axes labels
@@ -1464,13 +1533,13 @@ class VisualizationEngine {
   }
 
   /** Draw contour map */
-  renderContour(points, stepSize) {
+  renderContour(points, stepSize, opts = {}) {
     const g = this._buildGrid(points, stepSize);
     if (!g) return;
-    const canvas = this.canvasContour;
-    const container = canvas.parentElement;
-    const W = container.offsetWidth  || 600;
-    const H = (container.offsetHeight || 400) - 40;
+    const canvas = opts.targetCanvas || this.canvasContour;
+    const container = opts.targetCanvas ? null : canvas.parentElement;
+    const W = opts.width || container?.offsetWidth || 600;
+    const H = opts.height || ((container?.offsetHeight || 400) - 40);
     const cell = Math.max(Math.min(Math.floor(W/g.cols), Math.floor(H/g.rows), 120), 20);
 
     canvas.width  = cell * g.cols + 60;
@@ -1516,7 +1585,6 @@ class VisualizationEngine {
       ctx.beginPath();
       for (let r = 0; r < g.rows-1; r++) {
         for (let c = 0; c < g.cols-1; c++) {
-          // Marching squares 4-corner case
           const v00 = g.grid[r][c];
           const v01 = g.grid[r][c+1];
           const v10 = g.grid[r+1][c];
@@ -1542,6 +1610,28 @@ class VisualizationEngine {
       ctx.stroke();
     }
 
+    // Mark scan points and add depth labels
+    const fontSize = Math.max(9, Math.min(14, Math.floor(cell * 0.17)));
+    ctx.font = `${fontSize}px monospace`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    for (const p of points) {
+      const c = p.gx - g.minX;
+      const r = p.gy - g.minY;
+      const px = c * cell + cell/2;
+      const py = r * cell + cell/2;
+      ctx.beginPath(); ctx.arc(px, py, Math.max(2, cell/8), 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fill();
+      const label = p.depth_m ? `${fmtNum(p.depth_m, 2)}م` : `${fmtNum(p.deltaB, 2)}µT`;
+      const tx = px + Math.max(4, cell * 0.15);
+      const ty = py - Math.max(6, cell * 0.15);
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.lineWidth = 3;
+      ctx.strokeText(label, tx, ty);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(label, tx, ty);
+    }
+
     // Labels
     ctx.fillStyle = '#4a6278'; ctx.font = '9px monospace';
     for (let c = 0; c < g.cols; c++) {
@@ -1552,13 +1642,13 @@ class VisualizationEngine {
   }
 
   /** Draw 3D surface using isometric projection */
-  render3DSurface(points, stepSize) {
+  render3DSurface(points, stepSize, opts = {}) {
     const g = this._buildGrid(points, stepSize);
     if (!g) return;
-    const canvas = this.canvasSurface;
-    const container = canvas.parentElement;
-    const W = Math.min(container.offsetWidth || 600, 800);
-    const H = Math.min((container.offsetHeight || 400) - 40, 500);
+    const canvas = opts.targetCanvas || this.canvasSurface;
+    const container = opts.targetCanvas ? null : canvas.parentElement;
+    const W = opts.width || Math.min(container?.offsetWidth || 600, 800);
+    const H = opts.height || Math.min((container?.offsetHeight || 400) - 40, 500);
     canvas.width = W; canvas.height = H;
 
     const ctx = canvas.getContext('2d');
@@ -1567,6 +1657,8 @@ class VisualizationEngine {
 
     const range = g.maxV - g.minV || 1;
     const cellW = Math.max(1, Math.floor(W / (g.cols + g.rows) * 1.2));
+
+    const pointMap = new Map(points.map(p => [`${p.gx},${p.gy}`, p]));
 
     // Isometric projection: x' = (c-r)*tileW/2, y' = (c+r)*tileH/2 - height
     const tileW = Math.max(8, Math.min(32, Math.floor(W / (g.cols + g.rows) * 1.5)));
@@ -1624,6 +1716,22 @@ class VisualizationEngine {
           ctx.fillStyle = `rgba(${Math.floor(ri*0.7)},${Math.floor(gi2*0.7)},${Math.floor(bi*0.7)},1)`;
           ctx.fill();
           ctx.stroke();
+        }
+
+        const point = pointMap.get(`${g.minX + c},${g.minY + r}`);
+        if (point) {
+          const label = point.depth_m ? `${fmtNum(point.depth_m, 2)}م` : `${fmtNum(point.deltaB, 2)}µT`;
+          const fontSize = Math.max(9, Math.min(14, Math.floor(tileW * 0.9)));
+          ctx.font = `${fontSize}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          const tx = px;
+          const ty = py - h - 4;
+          ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+          ctx.lineWidth = 3;
+          ctx.strokeText(label, tx, ty);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(label, tx, ty);
         }
       }
     }
@@ -2089,6 +2197,7 @@ function moveTo(dx, dy) {
       magnitude:     avgMag,
       deltaB:        deltaB,
       anomaly_score: score,
+      depth_m:       estimatePointDepth(deltaB),
       lat: sensors.lat,
       lon: sensors.lon,
       timestamp: Date.now(),
@@ -2168,6 +2277,28 @@ function runAnalysis() {
     grid.appendChild(div);
   }
 
+  if (result.clusters && result.clusters.length) {
+    const header = document.createElement('div');
+    header.className = 'analysis-item';
+    header.style.cssText = 'grid-column:1/-1;background:rgba(0,201,167,0.08);border:1px solid rgba(0,201,167,0.18);';
+    header.innerHTML = `
+      <div class="alabel">تفاصيل مناطق الشذوذ</div>
+      <div class="anote">رقم المنطقة • عدد الخطوات • الحجم • العمق • مركز الشبكة</div>
+    `;
+    grid.appendChild(header);
+
+    result.clusters.forEach(cluster => {
+      const div = document.createElement('div');
+      div.className = 'analysis-item';
+      div.innerHTML = `
+        <div class="alabel">المنطقة ${cluster.id}</div>
+        <div class="aval">${cluster.pointCount} نقطة</div>
+        <div class="anote">الحجم: ${cluster.area} م² • العمق: ${cluster.depth} م • مركز: ${cluster.center}</div>
+      `;
+      grid.appendChild(div);
+    });
+  }
+
   // Depth disclaimer
   const disc = document.createElement('div');
   disc.style.cssText = 'grid-column:1/-1;background:rgba(255,179,71,0.07);border:1px solid var(--warn);border-radius:6px;padding:8px 12px;font-size:10px;color:var(--warn);line-height:1.6';
@@ -2180,31 +2311,44 @@ function runAnalysis() {
 // ================================================================
 // EXPORTS
 // ================================================================
-function exportPNG() {
-  const canvas = currentView === 'heatmap'  ? visEngine.canvasHeatmap  :
-                 currentView === 'contour'  ? visEngine.canvasContour  :
-                                              visEngine.canvasSurface;
-  if (!canvas.width) { showToast('لا توجد صورة للتصدير'); return; }
-
-  // Add metadata overlay
+function createExportCanvas(view, scale = 2) {
+  if (!scanPoints.length) return null;
+  const container = document.getElementById('canvas-container');
+  const width = Math.max(720, (container.offsetWidth || 600) * scale);
+  const height = Math.max(520, (container.offsetHeight || 400) * scale);
   const tmp = document.createElement('canvas');
-  tmp.width  = canvas.width;
-  tmp.height = canvas.height + 60;
+  tmp.width = Math.round(width);
+  tmp.height = Math.round(height);
+
+  if (view === 'heatmap') visEngine.renderHeatmap(scanPoints, stepSize, { targetCanvas: tmp, width: tmp.width, height: tmp.height });
+  if (view === 'contour') visEngine.renderContour(scanPoints, stepSize, { targetCanvas: tmp, width: tmp.width, height: tmp.height });
+  if (view === 'surface3d') visEngine.render3DSurface(scanPoints, stepSize, { targetCanvas: tmp, width: tmp.width, height: tmp.height });
+
+  return tmp;
+}
+
+function exportPNG() {
+  const exportCanvas = createExportCanvas(currentView, 2);
+  if (!exportCanvas) { showToast('لا توجد صورة للتصدير'); return; }
+
+  const tmp = document.createElement('canvas');
+  tmp.width  = exportCanvas.width;
+  tmp.height = exportCanvas.height + 80;
   const ctx  = tmp.getContext('2d');
   ctx.fillStyle = '#0b0f1a';
   ctx.fillRect(0, 0, tmp.width, tmp.height);
-  ctx.drawImage(canvas, 0, 30);
+  ctx.drawImage(exportCanvas, 0, 60);
 
   ctx.fillStyle = '#00c9a7';
-  ctx.font = 'bold 12px monospace';
-  ctx.fillText('MAGSCAN PRO — خريطة الشذوذ المغناطيسي', 10, 16);
+  ctx.font = 'bold 16px monospace';
+  ctx.fillText('MAGSCAN PRO — خريطة الشذوذ المغناطيسي', 10, 24);
   ctx.fillStyle = '#4a6278';
-  ctx.font = '10px monospace';
-  ctx.fillText(`${new Date().toISOString()} | نقاط: ${scanPoints.length} | خطوة: ${stepSize}م | العرض: ${currentView}`, 10, tmp.height - 8);
+  ctx.font = '11px monospace';
+  ctx.fillText(`${new Date().toISOString()} | نقاط: ${scanPoints.length} | خطوة: ${stepSize}م | العرض: ${currentView}`, 10, 44);
   ctx.fillStyle = '#332200';
   ctx.fillRect(0, tmp.height - 22, tmp.width, 22);
   ctx.fillStyle = '#ffb347';
-  ctx.font = '9px monospace';
+  ctx.font = '10px monospace';
   ctx.fillText('⚠ بيانات المستشعر بالهاتف فقط — ليست بديلًا عن معدات GPR الاحترافية — تقديرات العمق تجريبية', 6, tmp.height - 6);
 
   const link = document.createElement('a');
@@ -2212,6 +2356,21 @@ function exportPNG() {
   link.href = tmp.toDataURL('image/png');
   link.click();
   showToast('تم تصدير صورة PNG');
+}
+
+function exportAllViewsPNG() {
+  if (!scanPoints.length) { showToast('لا توجد بيانات للتصدير'); return; }
+  const views = ['heatmap', 'contour', 'surface3d'];
+  const suffix = new Date().toISOString().replace(/[:.]/g, '-');
+  views.forEach((view) => {
+    const exportCanvas = createExportCanvas(view, 2);
+    if (!exportCanvas) return;
+    const link = document.createElement('a');
+    link.download = `magscan_${view}_${suffix}.png`;
+    link.href = exportCanvas.toDataURL('image/png');
+    link.click();
+  });
+  showToast('تم حفظ الأنماط الثلاثة كصور PNG عالية الجودة');
 }
 
 function exportCSV() {
