@@ -925,10 +925,12 @@ canvas {
 // ================================================================
 const CAL_DURATION_MS     = 60_000;  // 60s calibration
 const POINT_DURATION_MS   = 10_000;  // 10s per scan point
-const MAF_WINDOW          = 10;       // Moving average window
-const KALMAN_Q            = 0.001;    // Kalman process noise
-const KALMAN_R            = 0.1;      // Kalman measurement noise
-const FFT_CUTOFF          = 0.15;     // FFT high-freq cutoff ratio
+const MAF_WINDOW          = 20;       // Moving average window (increased for better filtering)
+const KALMAN_Q            = 0.00005;  // Kalman process noise (lower = trust model more)
+const KALMAN_R            = 0.05;     // Kalman measurement noise (lower = trust measurements more)
+const FFT_CUTOFF          = 0.1;      // FFT high-freq cutoff ratio (stricter)
+const EMA_ALPHA           = 0.15;     // Exponential Moving Average for calibration
+const ORIENTATION_SMOOTH  = 0.9;      // Orientation smoothing factor
 const COLORMAP_STEPS = [
   [0.0, [255, 255, 0]],  // Yellow (10% below calibration)
   [0.5, [0, 0, 255]],    // Blue (at calibration - 50% mark)
@@ -968,7 +970,58 @@ function magnitude(x, y, z) {
   return Math.sqrt(x*x + y*y + z*z);
 }
 
-function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+/** 
+ * تحويل المتجه المغناطيسي من إطار الجهاز إلى إطار الأرض الثابت
+ * باستخدام مصفوفات التحويل (Rotation Matrix) من بيانات التسارع والدوران
+ * هذا يجعل القراءة مستقلة عن اتجاه الجهاز
+ */
+function rotateToEarthFrame(bx, by, bz, ax, ay, az) {
+  // طبّع متجه التسارع (يشير إلى الجاذبية)
+  const aMag = magnitude(ax, ay, az);
+  if (aMag < 0.1) return { x: bx, y: by, z: bz }; // بيانات غير موثوقة
+  
+  const ax_n = ax / aMag;
+  const ay_n = ay / aMag;
+  const az_n = az / aMag;
+  
+  // نقطة الشرق: متجه عمودي على الجاذبية
+  // نحسب (0, 0, 1) × (ax_n, ay_n, az_n) = الشرق الحقيقي
+  const east_x = -ay_n;
+  const east_y = ax_n;
+  const east_z = 0;
+  
+  // طبّع الشرق
+  const east_mag = Math.sqrt(east_x*east_x + east_y*east_y + east_z*east_z);
+  if (east_mag < 0.1) return { x: bx, y: by, z: bz };
+  
+  const east_x_n = east_x / east_mag;
+  const east_y_n = east_y / east_mag;
+  const east_z_n = east_z / east_mag;
+  
+  // الشمال = الجاذبية × الشرق
+  const north_x = ay_n * east_z_n - az_n * east_y_n;
+  const north_y = az_n * east_x_n - ax_n * east_z_n;
+  const north_z = ax_n * east_y_n - ay_n * east_x_n;
+  
+  // مصفوفة التحويل من إطار الجهاز إلى إطار الأرض:
+  // الصفوف = [الشرق، الشمال، الأعلى (الجاذبية)]
+  const B_north = bx * north_x + by * north_y + bz * north_z;
+  const B_east  = bx * east_x_n + by * east_y_n + bz * east_z_n;
+  const B_up    = bx * ax_n + by * ay_n + bz * az_n;
+  
+  return { x: B_north, y: B_east, z: B_up };
+}
+
+/**
+ * حساب شدة المجال المغناطيسي للأرض فقط (بدون التأثيرات المحلية)
+ * نستخرج مكون الحقل المغناطيسي الثابت الذي يشير للشمال الحقيقي
+ */
+function computeEarthMagnetism(B_rotated) {
+  // الحقل المغناطيسي للأرض يشير بزاوية محددة في كل مكان
+  // نحسب المكون الأفقي (الشمالي + الشرقي) الذي لا يتأثر بحركة الجهاز
+  const horizontal = Math.sqrt(B_rotated.x * B_rotated.x + B_rotated.y * B_rotated.y);
+  return horizontal; // هذا مستقل عن حركة الجهاز العمودية
+}
 
 function fmtNum(n, dec=2) {
   if (n == null || isNaN(n)) return '—';
@@ -1006,6 +1059,9 @@ class SignalProcessor {
     this.mafBuf = [];  // Moving average buffer
     // Kalman state
     this.kx = 0; this.kP = 1;
+    // EMA state for advanced calibration
+    this.emaValue = null;
+    this.emaVelocity = 0;
   }
 
   /**
@@ -1016,6 +1072,39 @@ class SignalProcessor {
     this.mafBuf.push(val);
     if (this.mafBuf.length > MAF_WINDOW) this.mafBuf.shift();
     return this.mafBuf.reduce((a,b) => a+b, 0) / this.mafBuf.length;
+  }
+
+  /**
+   * Exponential Moving Average (EMA) مع معادلة تفاضلية
+   * يحسب المتوسط بطريقة متقدمة تأخذ في الاعتبار التغيرات الزمنية
+   * S_t = α*x_t + (1-α)*S_{t-1}
+   * حيث α = EMA_ALPHA (factor of smoothing)
+   */
+  exponentialMovingAverage(val) {
+    if (this.emaValue === null) {
+      this.emaValue = val;
+    } else {
+      // حساب سرعة التغيير
+      this.emaVelocity = val - this.emaValue;
+      // تطبيق EMA مع عامل تنعيم
+      this.emaValue = EMA_ALPHA * val + (1 - EMA_ALPHA) * this.emaValue;
+    }
+    return this.emaValue;
+  }
+
+  /**
+   * Adaptive Filter: يختار بين EMA و Kalman حسب مستوى الضوضاء
+   */
+  adaptiveFilter(val, noiseLevel = 0.5) {
+    const maf = this.movingAverage(val);
+    const ema = this.exponentialMovingAverage(val);
+    const kalm = this.kalman(maf);
+    
+    // إذا كانت الضوضاء عالية، استخدم EMA أكثر
+    // وإلا استخدم Kalman
+    return noiseLevel > 0.5 ? 
+      0.4 * ema + 0.6 * kalm : 
+      0.3 * ema + 0.7 * kalm;
   }
 
   /**
@@ -1212,7 +1301,23 @@ class SensorManager {
   }
 
   getB() { return { x: this.bx, y: this.by, z: this.bz }; }
-  getMag() { return magnitude(this.bx, this.by, this.bz); }
+  
+  /**
+   * احصل على المغناطيس المصحح (في إطار الأرض الثابت)
+   * وليس مجرد حجم المتجه الخام
+   */
+  getMag() { 
+    // حوّل إلى إطار الأرض ثم احسب المكون الأفقي فقط
+    const earthFrame = rotateToEarthFrame(this.bx, this.by, this.bz, this.ax, this.ay, this.az);
+    return computeEarthMagnetism(earthFrame);
+  }
+  
+  /**
+   * احصل على شدة المجال الخام (للمقارنة)
+   */
+  getRawMag() {
+    return magnitude(this.bx, this.by, this.bz);
+  }
 }
 
 // ================================================================
@@ -1234,29 +1339,80 @@ class CalibrationEngine {
    */
   async runCalibration(durationMs, onProgress) {
     const samples = [];
-    const interval = 100; // 100ms sampling = 10 Hz
+    const interval = 50; // 50ms sampling = 20 Hz (أسرع من السابق)
     const totalSteps = durationMs / interval;
     let step = 0;
     this.sp.reset();
+    
+    // قائمة تخزين بيانات الحساسات والمتوسطات المتقدمة
+    const calibrationSamples = [];
 
     return new Promise((resolve) => {
       const timer = setInterval(() => {
         const b = this.sensors.getB();
-        const mag = magnitude(b.x, b.y, b.z);
-        const filtered = this.sp.movingAverage(mag);
-        samples.push({ bx: b.x, by: b.y, bz: b.z, mag: filtered });
+        const a = { x: this.sensors.ax, y: this.sensors.ay, z: this.sensors.az };
+        
+        // احصل على المغناطيس المصحح (في إطار الأرض)
+        const correctedMag = this.sensors.getMag();
+        const rawMag = magnitude(b.x, b.y, b.z);
+        
+        // طبّق فلاتر متقدمة: Moving Average + Kalman + EMA
+        const mafFiltered = this.sp.movingAverage(correctedMag);
+        const kalmanFiltered = this.sp.kalman(mafFiltered);
+        const emaFiltered = this.sp.exponentialMovingAverage(kalmanFiltered);
+        const adaptiveFiltered = this.sp.adaptiveFilter(correctedMag);
+        
+        // استخدم متوسط جميع الفلاتر للحصول على أفضل نتيجة
+        const finalFiltered = (kalmanFiltered + emaFiltered + adaptiveFiltered) / 3;
+        
+        samples.push({ 
+          bx: b.x, by: b.y, bz: b.z, 
+          mag: finalFiltered,
+          raw: rawMag,
+          corrected: correctedMag,
+          ax: a.x, ay: a.y, az: a.z
+        });
+        
+        calibrationSamples.push(finalFiltered);
+        
         step++;
         if (onProgress) onProgress(step / totalSteps);
+        
         if (step >= totalSteps) {
           clearInterval(timer);
-          // Apply FFT suppression on magnitude series
-          const rawMags   = samples.map(s => s.mag);
-          const cleanMags = this.sp.fftSuppress(rawMags);
-          const meanMag   = cleanMags.reduce((a,b) => a+b, 0) / cleanMags.length;
-          const meanBx    = samples.reduce((a,s) => a+s.bx, 0) / samples.length;
-          const meanBy    = samples.reduce((a,s) => a+s.by, 0) / samples.length;
-          const meanBz    = samples.reduce((a,s) => a+s.bz, 0) / samples.length;
-          resolve({ mean_bx: meanBx, mean_by: meanBy, mean_bz: meanBz, magnitude: meanMag, samples: cleanMags });
+          
+          // طبّق FFT suppression على السلسلة الزمنية
+          const cleanMags = this.sp.fftSuppress(calibrationSamples);
+          
+          // احسب المتوسط باستخدام معادلة تفاضلية متقدمة
+          // المتوسط الموزون حسب التقارب من القيمة النهائية
+          const weights = cleanMags.map((_, i) => {
+            const progress = i / (cleanMags.length - 1);
+            // وزّن القيم الأخيرة أكثر (استقرار أفضل في النهاية)
+            return 0.5 + 0.5 * progress;
+          });
+          const weightedSum = cleanMags.reduce((sum, val, i) => sum + val * weights[i], 0);
+          const weightSum = weights.reduce((a, b) => a + b, 0);
+          const meanMag = weightedSum / weightSum;
+          
+          // احسب الانحراف المعياري لقياس جودة المعايرة
+          const variance = cleanMags.reduce((sum, val) => sum + Math.pow(val - meanMag, 2), 0) / cleanMags.length;
+          const stdDev = Math.sqrt(variance);
+          
+          // احسب المتوسطات الثلاثية
+          const meanBx = samples.reduce((a,s) => a+s.bx, 0) / samples.length;
+          const meanBy = samples.reduce((a,s) => a+s.by, 0) / samples.length;
+          const meanBz = samples.reduce((a,s) => a+s.bz, 0) / samples.length;
+          
+          resolve({ 
+            mean_bx: meanBx, 
+            mean_by: meanBy, 
+            mean_bz: meanBz, 
+            magnitude: meanMag, 
+            samples: cleanMags,
+            stdDev: stdDev,
+            quality: 1 / (1 + stdDev / meanMag) // معيار جودة المعايرة
+          });
         }
       }, interval);
     });
@@ -1281,11 +1437,20 @@ class CalibrationEngine {
   /** Compute anomaly score [0..1] from current magnitude */
   computeAnomaly(rawMag) {
     if (!this.siteDone || !this.ironDone) return 0;
+    
     const deltaB = rawMag - this.siteRef.magnitude;
+    
     // Normalize relative to iron reference delta
     const refDelta = Math.abs(this.ironRef.deltaMag) || 1;
-    const score = clamp(Math.abs(deltaB) / refDelta, 0, 1);
-    return { deltaB, score };
+    
+    // حساب النسبة مع أخذ جودة المعايرة في الاعتبار
+    const calibrationQuality = (this.siteRef.quality || 0.8);
+    const baseScore = clamp(Math.abs(deltaB) / refDelta, 0, 1);
+    
+    // اضرب الدرجة بمعامل جودة المعايرة (إذا كانت المعايرة رديئة، اخفض الثقة)
+    const adjustedScore = baseScore * calibrationQuality;
+    
+    return { deltaB, score: adjustedScore, quality: calibrationQuality };
   }
 }
 
@@ -1885,9 +2050,18 @@ function showModal(title, body, onOk, showCancel = false) {
 // ================================================================
 function updateSensorDisplay() {
   if (!sensors.magOk) return;
+  
   const b = sensors.getB();
-  const raw = sensors.getMag();
-  const filtered = liveKalman.kalman(liveKalman.movingAverage(raw));
+  const raw = sensors.getMag(); // قراءة مصححة بالفعل في إطار الأرض
+  
+  // طبّق فلاتر متقدمة
+  const mafFiltered = liveKalman.movingAverage(raw);
+  const kalmanFiltered = liveKalman.kalman(mafFiltered);
+  const emaFiltered = liveKalman.exponentialMovingAverage(kalmanFiltered);
+  const adaptiveFiltered = liveKalman.adaptiveFilter(raw);
+  
+  // استخدم متوسط الفلاتر للحصول على أفضل نتيجة
+  const filtered = (kalmanFiltered + emaFiltered + adaptiveFiltered) / 3;
 
   document.getElementById('val-bx').textContent = fmtNum(b.x);
   document.getElementById('val-by').textContent = fmtNum(b.y);
@@ -1898,10 +2072,19 @@ function updateSensorDisplay() {
     const anom = calEngine.computeAnomaly(filtered);
     document.getElementById('val-db').textContent = fmtNum(anom.deltaB);
     document.getElementById('val-anom').textContent = fmtNum(anom.score, 3);
-    // Color code anomaly score
+    // Color code anomaly score - مع أخذ جودة المعايرة في الاعتبار
     const el = document.getElementById('val-anom');
     el.style.color = anom.score > 0.6 ? 'var(--danger)' :
                      anom.score > 0.3 ? 'var(--warn)' : 'var(--green-ok)';
+    
+    // أضف مؤشر جودة المعايرة
+    if (anom.quality < 0.7) {
+      el.title = `⚠ جودة المعايرة منخفضة (${(anom.quality*100).toFixed(0)}%). أعد المعايرة!`;
+      el.style.opacity = '0.6';
+    } else {
+      el.title = `جودة المعايرة: ${(anom.quality*100).toFixed(0)}%`;
+      el.style.opacity = '1';
+    }
   } else {
     if (calEngine.siteDone) {
       const dB = filtered - calEngine.siteRef.magnitude;
@@ -2190,8 +2373,16 @@ function moveTo(dx, dy) {
     elapsed += 200;
     timerVal.textContent = Math.ceil((POINT_DURATION_MS - elapsed) / 1000);
     const b = sensors.getB();
-    const raw = sensors.getMag();
-    const filtered = sp2.kalman(sp2.movingAverage(raw));
+    const raw = sensors.getMag(); // قراءة مصححة بالفعل
+    
+    // طبّق فلاتر متقدمة متعددة
+    const mafFiltered = sp2.movingAverage(raw);
+    const kalmanFiltered = sp2.kalman(mafFiltered);
+    const emaFiltered = sp2.exponentialMovingAverage(kalmanFiltered);
+    const adaptiveFiltered = sp2.adaptiveFilter(raw);
+    
+    // استخدم متوسط الفلاتر للحصول على أفضل نتيجة
+    const filtered = (kalmanFiltered + emaFiltered + adaptiveFiltered) / 3;
     scanBuffer.push(filtered);
   }, 200);
 
@@ -2203,7 +2394,23 @@ function moveTo(dx, dy) {
 
     // FFT suppression on buffer
     const clean   = sigProc.fftSuppress(scanBuffer);
-    const avgMag  = clean.reduce((a,b) => a+b, 0) / clean.length;
+    
+    // احسب المتوسط باستخدام معادلة تفاضلية متقدمة
+    // المتوسط الموزون حسب التقارب الزمني (التركيز على القراءات الأخيرة/الأكثر استقراراً)
+    const weights = clean.map((_, i) => {
+      const progress = i / (clean.length - 1);
+      // وزّن القيم الأخيرة أكثر (استقرار أفضل)
+      return Math.pow(progress, 0.5);
+    });
+    const weightedSum = clean.reduce((sum, val, i) => sum + val * weights[i], 0);
+    const weightSum = weights.reduce((a, b) => a + b, 0);
+    const avgMag = weightedSum / weightSum;
+    
+    // احسب جودة النقطة (مستوى الاستقرار)
+    const variance = clean.reduce((sum, val) => sum + Math.pow(val - avgMag, 2), 0) / clean.length;
+    const stdDev = Math.sqrt(variance);
+    const pointQuality = 1 / (1 + stdDev / avgMag); // كلما زاد الاستقرار، زادت الجودة
+    
     const anomObj = calEngine.computeAnomaly(avgMag);
     const deltaB  = anomObj ? anomObj.deltaB : 0;
     const score   = anomObj ? anomObj.score  : 0;
@@ -2218,11 +2425,17 @@ function moveTo(dx, dy) {
       lat: sensors.lat,
       lon: sensors.lon,
       timestamp: Date.now(),
+      quality: pointQuality,  // جودة نقطة المسح
+      stdDev: stdDev,        // الانحراف المعياري
     };
 
     scanPoints.push(pt);
     DataStore.savePoints(scanPoints);
-    log(`Point (${pt.gx},${pt.gy}): |B|=${fmtNum(avgMag)} µT  ΔB=${fmtNum(deltaB)} µT  Score=${fmtNum(score,3)}`,
+    
+    // اظهر تحذير إذا كانت جودة النقطة منخفضة
+    const qualityStr = pointQuality > 0.8 ? '✓ عالية' : 
+                       pointQuality > 0.6 ? '~ متوسطة' : '! منخفضة';
+    log(`Point (${pt.gx},${pt.gy}): |B|=${fmtNum(avgMag)} µT  ΔB=${fmtNum(deltaB)} µT  Score=${fmtNum(score,3)}  جودة: ${qualityStr}`,
         score > 0.6 ? 'error' : score > 0.3 ? 'warn' : 'ok');
 
     renderCurrentView();
