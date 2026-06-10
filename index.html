@@ -677,7 +677,7 @@ canvas {
       <line x1="22" y1="14" x2="26" y2="14" stroke="#00c9a7" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
     <div>
-      <h1>MAGSCAN PRO7</h1>
+      <h1>MAGSCAN PRO8</h1>
       <span class="subtitle">نظام رسم الشذوذ المغناطيسي v2.0</span>
     </div>
   </div>
@@ -1217,34 +1217,11 @@ class SensorManager {
       }
     };
 
-    // Try Sensor API first (Android Chrome)
-    if (typeof Magnetometer !== 'undefined') {
-      try {
-        const sensor = new Magnetometer({ frequency: 10 });
-        sensor.addEventListener('reading', () => {
-          this.bx = sensor.x || 0;
-          this.by = sensor.y || 0;
-          this.bz = sensor.z || 0;
-          this.magOk = true;
-          if (this.onUpdate) this.onUpdate();
-        });
-        sensor.addEventListener('error', () => {
-          // Fall back to DeviceOrientationEvent
-          window.addEventListener('deviceorientationabsolute', this._magHandler, true);
-          window.addEventListener('deviceorientation', this._magHandler, true);
-        });
-        sensor.start();
-        log('Magnetometer API active', 'ok');
-      } catch(e) {
-        window.addEventListener('deviceorientationabsolute', this._magHandler, true);
-        window.addEventListener('deviceorientation', this._magHandler, true);
-        log('Using DeviceOrientation for mag', 'warn');
-      }
-    } else {
-      window.addEventListener('deviceorientationabsolute', this._magHandler, true);
-      window.addEventListener('deviceorientation', this._magHandler, true);
-      log('DeviceOrientation for magnetometer', 'warn');
-    }
+    // استخدم DeviceOrientation مباشرة - هذا هو المتاح على معظم الأجهزة
+    // لا تحاول Magnetometer API لأنها تحتاج permissions معقدة
+    window.addEventListener('deviceorientationabsolute', this._magHandler, true);
+    window.addEventListener('deviceorientation', this._magHandler, true);
+    log('Magnetometer ready', 'ok');
 
     // Accelerometer
     if (typeof Accelerometer !== 'undefined') {
