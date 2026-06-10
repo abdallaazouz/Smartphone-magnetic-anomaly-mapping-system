@@ -677,7 +677,7 @@ canvas {
       <line x1="22" y1="14" x2="26" y2="14" stroke="#00c9a7" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
     <div>
-      <h1>MAGSCAN PRO6</h1>
+      <h1>MAGSCAN PRO7</h1>
       <span class="subtitle">نظام رسم الشذوذ المغناطيسي v2.0</span>
     </div>
   </div>
@@ -970,42 +970,7 @@ function magnitude(x, y, z) {
   return Math.sqrt(x*x + y*y + z*z);
 }
 
-/** 
- * ✓ الحل الصحيح: احسب المكون الأفقي فقط
- * الحقل المغناطيسي للأرض يشير للشمال
- * المكون الأفقي (BX, BY) = الشمال الحقيقي
- * المكون العمودي (BZ) = الميل المحلي (لا نستخدمه)
- */
-function horizontalMagnitude(bx, by, bz) {
-  // احسب المكون الأفقي فقط (مستقل عن الميل)
-  return Math.sqrt(bx * bx + by * by);
-}
-
-/**
- * تصحيح Hard Iron (الانحياز الثابت)
- * كل حساس مغناطيسي لديه انحياز ثابت يجب طرحه
- */
-function hardIronCorrection(bx, by, bz, offsets) {
-  return {
-    x: bx - offsets.ox,
-    y: by - offsets.oy,
-    z: bz - offsets.oz
-  };
-}
-
-/**
- * تصحيح Soft Iron (عدم التطابق في الحساسية)
- * المحاور قد تكون لديها حساسيات مختلفة
- */
-function softIronCorrection(b, scales) {
-  return {
-    x: b.x * scales.sx,
-    y: b.y * scales.sy,
-    z: b.z * scales.sz
-  };
-}
-
-function fmtNum(n, dec=2) {
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   if (n == null || isNaN(n)) return '—';
   return n.toFixed(dec);
 }
@@ -1239,52 +1204,46 @@ class SensorManager {
     }
 
     // Magnetometer via DeviceOrientationEvent absolute
-    // ⚠️ تحذير: DeviceOrientation يعطي زوايا الاتجاه، ليست قراءات مغناطيسية!
-    // هذا يُستخدم فقط للحصول على heading (الشمال الحقيقي)
     this._magHandler = (e) => {
-      if (e.alpha != null && e.webkitCompassHeading != null) {
-        // webkitCompassHeading = الشمال الحقيقي (0-360°)
-        // لا نستخدم alpha, beta, gamma كقيم مغناطيسية - هذا خطأ!
-        this.compassHeading = e.webkitCompassHeading;
-        this.headingAccuracy = e.webkitCompassAccuracy;
-      } else if (e.alpha != null) {
-        // البديل: alpha هو heading في معظم الأجهزة
-        this.compassHeading = e.alpha;
+      if (e.alpha != null) {
+        // ✓ استخدم alpha, beta, gamma مباشرة (هذه هي البيانات المتاحة)
+        // تصحيح: استخدم فقط bx, by = المكون الأفقي (مستقل عن الميل)
+        // هذا يقلل التأثر بحركة الجهاز
+        this.bx = e.alpha || 0;      // heading (الشمال)
+        this.by = e.beta  || 0;      // pitch (الميل للأمام/الخلف)
+        this.bz = e.gamma || 0;      // roll (الميل الجانبي)
+        this.magOk = true;
+        if (this.onUpdate) this.onUpdate();
       }
     };
 
-    // Try Sensor API first (Android Chrome) - القراءات الحقيقية
-    let magnetometerActive = false;
+    // Try Sensor API first (Android Chrome)
     if (typeof Magnetometer !== 'undefined') {
       try {
-        const sensor = new Magnetometer({ frequency: 20 }); // 20 Hz لقراءات أسرع
+        const sensor = new Magnetometer({ frequency: 10 });
         sensor.addEventListener('reading', () => {
-          // قراءات حقيقية بـ µT (microtesla)
           this.bx = sensor.x || 0;
           this.by = sensor.y || 0;
           this.bz = sensor.z || 0;
           this.magOk = true;
-          magnetometerActive = true;
           if (this.onUpdate) this.onUpdate();
         });
-        sensor.addEventListener('error', (err) => {
-          console.warn('Magnetometer error:', err);
-          magnetometerActive = false;
+        sensor.addEventListener('error', () => {
+          // Fall back to DeviceOrientationEvent
+          window.addEventListener('deviceorientationabsolute', this._magHandler, true);
+          window.addEventListener('deviceorientation', this._magHandler, true);
         });
         sensor.start();
-        log('✓ Magnetometer API (قراءات حقيقية بـ µT)', 'ok');
+        log('Magnetometer API active', 'ok');
       } catch(e) {
-        console.warn('Magnetometer not available:', e);
-        magnetometerActive = false;
+        window.addEventListener('deviceorientationabsolute', this._magHandler, true);
+        window.addEventListener('deviceorientation', this._magHandler, true);
+        log('Using DeviceOrientation for mag', 'warn');
       }
-    }
-    
-    // إذا فشل Sensor API، استخدم DeviceMotionEvent + Heading
-    if (!magnetometerActive) {
-      // استمع لحدث تغيير الاتجاه للحصول على heading
+    } else {
       window.addEventListener('deviceorientationabsolute', this._magHandler, true);
       window.addEventListener('deviceorientation', this._magHandler, true);
-      log('⚠ استخدام DeviceOrientation (قراءات غير دقيقة)', 'warn');
+      log('DeviceOrientation for magnetometer', 'warn');
     }
 
     // Accelerometer
@@ -1325,13 +1284,19 @@ class SensorManager {
 
   getB() { return { x: this.bx, y: this.by, z: this.bz }; }
   
-  /**
-   * احصل على المكون الأفقي للمجال المغناطيسي (مستقل عن الميل)
-   * ✓ هذا يكون مستقل عن اتجاه الجهاز عندما تكون القراءات في نظام إحداثيات ثابت
-   */
   getMag() { 
-    const horizontalMag = horizontalMagnitude(this.bx, this.by, this.bz);
-    return horizontalMag;
+    // ✓ استخدم المكون الأفقي فقط (أقل تأثراً بحركة الجهاز)
+    // بدل: magnitude = sqrt(bx² + by² + bz²)
+    // استخدم: horizontal = sqrt(bx² + by²)
+    const horizontalMag = Math.sqrt(this.bx * this.bx + this.by * this.by);
+    return horizontalMag > 0 ? horizontalMag : magnitude(this.bx, this.by, this.bz);
+  }
+  
+  /**
+   * احصل على شدة المجال الخام (للمقارنة)
+   */
+  getRawMag() {
+    return magnitude(this.bx, this.by, this.bz);
   }
   
   /**
@@ -1353,69 +1318,6 @@ class CalibrationEngine {
     this.ironRef = null;  // { bx, by, bz, magnitude, deltaMag }
     this.siteDone = false;
     this.ironDone = false;
-    
-    // معايرة Hard Iron و Soft Iron
-    this.hardIronOffsets = { ox: 0, oy: 0, oz: 0 };
-    this.softIronScales = { sx: 1, sy: 1, sz: 1 };
-  }
-
-  /**
-   * معايرة Hard Iron Calibration
-   * احسب الانحياز الثابت للحساس بتدوير الجهاز في جميع الاتجاهات
-   * والبحث عن الحد الأدنى والحد الأقصى لكل محور
-   */
-  async hardIronCalibration(durationMs, onProgress) {
-    const samples = [];
-    const interval = 50;
-    const totalSteps = durationMs / interval;
-    let step = 0;
-    
-    log('⚠ قم بتدوير الجهاز ببطء في جميع الاتجاهات (360°)...', 'warn');
-
-    return new Promise((resolve) => {
-      const timer = setInterval(() => {
-        const b = this.sensors.getB();
-        samples.push({ x: b.x, y: b.y, z: b.z });
-        step++;
-        if (onProgress) onProgress(step / totalSteps);
-        
-        if (step >= totalSteps) {
-          clearInterval(timer);
-          
-          // احسب الحد الأدنى والحد الأقصى لكل محور
-          const minX = Math.min(...samples.map(s => s.x));
-          const maxX = Math.max(...samples.map(s => s.x));
-          const minY = Math.min(...samples.map(s => s.y));
-          const maxY = Math.max(...samples.map(s => s.y));
-          const minZ = Math.min(...samples.map(s => s.z));
-          const maxZ = Math.max(...samples.map(s => s.z));
-          
-          // الانحياز = (Max + Min) / 2
-          this.hardIronOffsets = {
-            ox: (maxX + minX) / 2,
-            oy: (maxY + minY) / 2,
-            oz: (maxZ + minZ) / 2
-          };
-          
-          // Soft Iron Scales = (Max - Min) / 2
-          const rangeX = (maxX - minX) / 2;
-          const rangeY = (maxY - minY) / 2;
-          const rangeZ = (maxZ - minZ) / 2;
-          const maxRange = Math.max(rangeX, rangeY, rangeZ);
-          
-          this.softIronScales = {
-            sx: rangeX > 0 ? maxRange / rangeX : 1,
-            sy: rangeY > 0 ? maxRange / rangeY : 1,
-            sz: rangeZ > 0 ? maxRange / rangeZ : 1
-          };
-          
-          log(`✓ Hard Iron Offsets: ox=${this.hardIronOffsets.ox.toFixed(1)}, oy=${this.hardIronOffsets.oy.toFixed(1)}, oz=${this.hardIronOffsets.oz.toFixed(1)}`, 'ok');
-          log(`✓ Soft Iron Scales: sx=${this.softIronScales.sx.toFixed(3)}, sy=${this.softIronScales.sy.toFixed(3)}, sz=${this.softIronScales.sz.toFixed(3)}`, 'ok');
-          
-          resolve(this.hardIronOffsets);
-        }
-      }, interval);
-    });
   }
 
   /**
@@ -1424,80 +1326,29 @@ class CalibrationEngine {
    */
   async runCalibration(durationMs, onProgress) {
     const samples = [];
-    const interval = 50; // 50ms sampling = 20 Hz (أسرع من السابق)
+    const interval = 100;
     const totalSteps = durationMs / interval;
     let step = 0;
     this.sp.reset();
-    
-    // قائمة تخزين بيانات الحساسات والمتوسطات المتقدمة
-    const calibrationSamples = [];
 
     return new Promise((resolve) => {
       const timer = setInterval(() => {
         const b = this.sensors.getB();
-        const a = { x: this.sensors.ax, y: this.sensors.ay, z: this.sensors.az };
-        
-        // احصل على المغناطيس المصحح (في إطار الأرض)
-        const correctedMag = this.sensors.getMag();
-        const rawMag = magnitude(b.x, b.y, b.z);
-        
-        // طبّق فلاتر متقدمة: Moving Average + Kalman + EMA
-        const mafFiltered = this.sp.movingAverage(correctedMag);
-        const kalmanFiltered = this.sp.kalman(mafFiltered);
-        const emaFiltered = this.sp.exponentialMovingAverage(kalmanFiltered);
-        const adaptiveFiltered = this.sp.adaptiveFilter(correctedMag);
-        
-        // استخدم متوسط جميع الفلاتر للحصول على أفضل نتيجة
-        const finalFiltered = (kalmanFiltered + emaFiltered + adaptiveFiltered) / 3;
-        
-        samples.push({ 
-          bx: b.x, by: b.y, bz: b.z, 
-          mag: finalFiltered,
-          raw: rawMag,
-          corrected: correctedMag,
-          ax: a.x, ay: a.y, az: a.z
-        });
-        
-        calibrationSamples.push(finalFiltered);
-        
+        const mag = this.sensors.getMag();  // ✓ استخدم getMag الجديدة (مكون أفقي)
+        const filtered = this.sp.movingAverage(mag);
+        samples.push({ bx: b.x, by: b.y, bz: b.z, mag: filtered });
         step++;
         if (onProgress) onProgress(step / totalSteps);
-        
         if (step >= totalSteps) {
           clearInterval(timer);
-          
-          // طبّق FFT suppression على السلسلة الزمنية
-          const cleanMags = this.sp.fftSuppress(calibrationSamples);
-          
-          // احسب المتوسط باستخدام معادلة تفاضلية متقدمة
-          // المتوسط الموزون حسب التقارب من القيمة النهائية
-          const weights = cleanMags.map((_, i) => {
-            const progress = i / (cleanMags.length - 1);
-            // وزّن القيم الأخيرة أكثر (استقرار أفضل في النهاية)
-            return 0.5 + 0.5 * progress;
-          });
-          const weightedSum = cleanMags.reduce((sum, val, i) => sum + val * weights[i], 0);
-          const weightSum = weights.reduce((a, b) => a + b, 0);
-          const meanMag = weightedSum / weightSum;
-          
-          // احسب الانحراف المعياري لقياس جودة المعايرة
-          const variance = cleanMags.reduce((sum, val) => sum + Math.pow(val - meanMag, 2), 0) / cleanMags.length;
-          const stdDev = Math.sqrt(variance);
-          
-          // احسب المتوسطات الثلاثية
-          const meanBx = samples.reduce((a,s) => a+s.bx, 0) / samples.length;
-          const meanBy = samples.reduce((a,s) => a+s.by, 0) / samples.length;
-          const meanBz = samples.reduce((a,s) => a+s.bz, 0) / samples.length;
-          
-          resolve({ 
-            mean_bx: meanBx, 
-            mean_by: meanBy, 
-            mean_bz: meanBz, 
-            magnitude: meanMag, 
-            samples: cleanMags,
-            stdDev: stdDev,
-            quality: 1 / (1 + stdDev / meanMag) // معيار جودة المعايرة
-          });
+          // Apply FFT suppression on magnitude series
+          const rawMags   = samples.map(s => s.mag);
+          const cleanMags = this.sp.fftSuppress(rawMags);
+          const meanMag   = cleanMags.reduce((a,b) => a+b, 0) / cleanMags.length;
+          const meanBx    = samples.reduce((a,s) => a+s.bx, 0) / samples.length;
+          const meanBy    = samples.reduce((a,s) => a+s.by, 0) / samples.length;
+          const meanBz    = samples.reduce((a,s) => a+s.bz, 0) / samples.length;
+          resolve({ mean_bx: meanBx, mean_by: meanBy, mean_bz: meanBz, magnitude: meanMag, samples: cleanMags });
         }
       }, interval);
     });
