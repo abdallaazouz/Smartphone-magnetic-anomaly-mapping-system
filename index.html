@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>MagScan Pro5 — خريطة الشذوذ المغناطيسي</title>
+<title>MagScan Pro — خريطة الشذوذ المغناطيسي</title>
 <style>
 /* ============================================================
    DESIGN TOKENS
@@ -677,7 +677,7 @@ canvas {
       <line x1="22" y1="14" x2="26" y2="14" stroke="#00c9a7" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
     <div>
-      <h1>MAGSCAN PRO</h1>
+      <h1>MAGSCAN PRO6</h1>
       <span class="subtitle">نظام رسم الشذوذ المغناطيسي v2.0</span>
     </div>
   </div>
@@ -971,56 +971,38 @@ function magnitude(x, y, z) {
 }
 
 /** 
- * تحويل المتجه المغناطيسي من إطار الجهاز إلى إطار الأرض الثابت
- * باستخدام مصفوفات التحويل (Rotation Matrix) من بيانات التسارع والدوران
- * هذا يجعل القراءة مستقلة عن اتجاه الجهاز
+ * ✓ الحل الصحيح: احسب المكون الأفقي فقط
+ * الحقل المغناطيسي للأرض يشير للشمال
+ * المكون الأفقي (BX, BY) = الشمال الحقيقي
+ * المكون العمودي (BZ) = الميل المحلي (لا نستخدمه)
  */
-function rotateToEarthFrame(bx, by, bz, ax, ay, az) {
-  // طبّع متجه التسارع (يشير إلى الجاذبية)
-  const aMag = magnitude(ax, ay, az);
-  if (aMag < 0.1) return { x: bx, y: by, z: bz }; // بيانات غير موثوقة
-  
-  const ax_n = ax / aMag;
-  const ay_n = ay / aMag;
-  const az_n = az / aMag;
-  
-  // نقطة الشرق: متجه عمودي على الجاذبية
-  // نحسب (0, 0, 1) × (ax_n, ay_n, az_n) = الشرق الحقيقي
-  const east_x = -ay_n;
-  const east_y = ax_n;
-  const east_z = 0;
-  
-  // طبّع الشرق
-  const east_mag = Math.sqrt(east_x*east_x + east_y*east_y + east_z*east_z);
-  if (east_mag < 0.1) return { x: bx, y: by, z: bz };
-  
-  const east_x_n = east_x / east_mag;
-  const east_y_n = east_y / east_mag;
-  const east_z_n = east_z / east_mag;
-  
-  // الشمال = الجاذبية × الشرق
-  const north_x = ay_n * east_z_n - az_n * east_y_n;
-  const north_y = az_n * east_x_n - ax_n * east_z_n;
-  const north_z = ax_n * east_y_n - ay_n * east_x_n;
-  
-  // مصفوفة التحويل من إطار الجهاز إلى إطار الأرض:
-  // الصفوف = [الشرق، الشمال، الأعلى (الجاذبية)]
-  const B_north = bx * north_x + by * north_y + bz * north_z;
-  const B_east  = bx * east_x_n + by * east_y_n + bz * east_z_n;
-  const B_up    = bx * ax_n + by * ay_n + bz * az_n;
-  
-  return { x: B_north, y: B_east, z: B_up };
+function horizontalMagnitude(bx, by, bz) {
+  // احسب المكون الأفقي فقط (مستقل عن الميل)
+  return Math.sqrt(bx * bx + by * by);
 }
 
 /**
- * حساب شدة المجال المغناطيسي للأرض فقط (بدون التأثيرات المحلية)
- * نستخرج مكون الحقل المغناطيسي الثابت الذي يشير للشمال الحقيقي
+ * تصحيح Hard Iron (الانحياز الثابت)
+ * كل حساس مغناطيسي لديه انحياز ثابت يجب طرحه
  */
-function computeEarthMagnetism(B_rotated) {
-  // الحقل المغناطيسي للأرض يشير بزاوية محددة في كل مكان
-  // نحسب المكون الأفقي (الشمالي + الشرقي) الذي لا يتأثر بحركة الجهاز
-  const horizontal = Math.sqrt(B_rotated.x * B_rotated.x + B_rotated.y * B_rotated.y);
-  return horizontal; // هذا مستقل عن حركة الجهاز العمودية
+function hardIronCorrection(bx, by, bz, offsets) {
+  return {
+    x: bx - offsets.ox,
+    y: by - offsets.oy,
+    z: bz - offsets.oz
+  };
+}
+
+/**
+ * تصحيح Soft Iron (عدم التطابق في الحساسية)
+ * المحاور قد تكون لديها حساسيات مختلفة
+ */
+function softIronCorrection(b, scales) {
+  return {
+    x: b.x * scales.sx,
+    y: b.y * scales.sy,
+    z: b.z * scales.sz
+  };
 }
 
 function fmtNum(n, dec=2) {
@@ -1193,6 +1175,38 @@ class SignalProcessor {
   reset() {
     this.mafBuf = [];
     this.kx = 0; this.kP = 1;
+    this.emaValue = null;
+    this.emaVelocity = 0;
+  }
+
+  /**
+   * Hard Iron Correction (تصحيح الانحياز الثابت)
+   * كل حساس مغناطيسي لديه انحياز ثابت يحتاج لطرحه
+   */
+  hardIronCorrection(bx, by, bz, calibrationOffsets = null) {
+    if (!calibrationOffsets) {
+      return { x: bx, y: by, z: bz };
+    }
+    return {
+      x: bx - calibrationOffsets.ox,
+      y: by - calibrationOffsets.oy,
+      z: bz - calibrationOffsets.oz
+    };
+  }
+
+  /**
+   * Soft Iron Correction (تصحيح عدم التطابق في الحساسية)
+   * المحاور قد تكون لديها حساسيات مختلفة
+   */
+  softIronCorrection(b, calibrationScales = null) {
+    if (!calibrationScales) {
+      return b;
+    }
+    return {
+      x: b.x / calibrationScales.sx,
+      y: b.y / calibrationScales.sy,
+      z: b.z / calibrationScales.sz
+    };
   }
 }
 
@@ -1225,43 +1239,52 @@ class SensorManager {
     }
 
     // Magnetometer via DeviceOrientationEvent absolute
+    // ⚠️ تحذير: DeviceOrientation يعطي زوايا الاتجاه، ليست قراءات مغناطيسية!
+    // هذا يُستخدم فقط للحصول على heading (الشمال الحقيقي)
     this._magHandler = (e) => {
-      if (e.alpha != null) {
-        this.bx = e.alpha || 0;
-        this.by = e.beta  || 0;
-        this.bz = e.gamma || 0;
-        this.magOk = true;
-        if (this.onUpdate) this.onUpdate();
+      if (e.alpha != null && e.webkitCompassHeading != null) {
+        // webkitCompassHeading = الشمال الحقيقي (0-360°)
+        // لا نستخدم alpha, beta, gamma كقيم مغناطيسية - هذا خطأ!
+        this.compassHeading = e.webkitCompassHeading;
+        this.headingAccuracy = e.webkitCompassAccuracy;
+      } else if (e.alpha != null) {
+        // البديل: alpha هو heading في معظم الأجهزة
+        this.compassHeading = e.alpha;
       }
     };
 
-    // Try Sensor API first (Android Chrome)
+    // Try Sensor API first (Android Chrome) - القراءات الحقيقية
+    let magnetometerActive = false;
     if (typeof Magnetometer !== 'undefined') {
       try {
-        const sensor = new Magnetometer({ frequency: 10 });
+        const sensor = new Magnetometer({ frequency: 20 }); // 20 Hz لقراءات أسرع
         sensor.addEventListener('reading', () => {
+          // قراءات حقيقية بـ µT (microtesla)
           this.bx = sensor.x || 0;
           this.by = sensor.y || 0;
           this.bz = sensor.z || 0;
           this.magOk = true;
+          magnetometerActive = true;
           if (this.onUpdate) this.onUpdate();
         });
-        sensor.addEventListener('error', () => {
-          // Fall back to DeviceOrientationEvent
-          window.addEventListener('deviceorientationabsolute', this._magHandler, true);
-          window.addEventListener('deviceorientation', this._magHandler, true);
+        sensor.addEventListener('error', (err) => {
+          console.warn('Magnetometer error:', err);
+          magnetometerActive = false;
         });
         sensor.start();
-        log('Magnetometer API active', 'ok');
+        log('✓ Magnetometer API (قراءات حقيقية بـ µT)', 'ok');
       } catch(e) {
-        window.addEventListener('deviceorientationabsolute', this._magHandler, true);
-        window.addEventListener('deviceorientation', this._magHandler, true);
-        log('Using DeviceOrientation for mag', 'warn');
+        console.warn('Magnetometer not available:', e);
+        magnetometerActive = false;
       }
-    } else {
+    }
+    
+    // إذا فشل Sensor API، استخدم DeviceMotionEvent + Heading
+    if (!magnetometerActive) {
+      // استمع لحدث تغيير الاتجاه للحصول على heading
       window.addEventListener('deviceorientationabsolute', this._magHandler, true);
       window.addEventListener('deviceorientation', this._magHandler, true);
-      log('DeviceOrientation for magnetometer', 'warn');
+      log('⚠ استخدام DeviceOrientation (قراءات غير دقيقة)', 'warn');
     }
 
     // Accelerometer
@@ -1303,13 +1326,12 @@ class SensorManager {
   getB() { return { x: this.bx, y: this.by, z: this.bz }; }
   
   /**
-   * احصل على المغناطيس المصحح (في إطار الأرض الثابت)
-   * وليس مجرد حجم المتجه الخام
+   * احصل على المكون الأفقي للمجال المغناطيسي (مستقل عن الميل)
+   * ✓ هذا يكون مستقل عن اتجاه الجهاز عندما تكون القراءات في نظام إحداثيات ثابت
    */
   getMag() { 
-    // حوّل إلى إطار الأرض ثم احسب المكون الأفقي فقط
-    const earthFrame = rotateToEarthFrame(this.bx, this.by, this.bz, this.ax, this.ay, this.az);
-    return computeEarthMagnetism(earthFrame);
+    const horizontalMag = horizontalMagnitude(this.bx, this.by, this.bz);
+    return horizontalMag;
   }
   
   /**
@@ -1331,6 +1353,69 @@ class CalibrationEngine {
     this.ironRef = null;  // { bx, by, bz, magnitude, deltaMag }
     this.siteDone = false;
     this.ironDone = false;
+    
+    // معايرة Hard Iron و Soft Iron
+    this.hardIronOffsets = { ox: 0, oy: 0, oz: 0 };
+    this.softIronScales = { sx: 1, sy: 1, sz: 1 };
+  }
+
+  /**
+   * معايرة Hard Iron Calibration
+   * احسب الانحياز الثابت للحساس بتدوير الجهاز في جميع الاتجاهات
+   * والبحث عن الحد الأدنى والحد الأقصى لكل محور
+   */
+  async hardIronCalibration(durationMs, onProgress) {
+    const samples = [];
+    const interval = 50;
+    const totalSteps = durationMs / interval;
+    let step = 0;
+    
+    log('⚠ قم بتدوير الجهاز ببطء في جميع الاتجاهات (360°)...', 'warn');
+
+    return new Promise((resolve) => {
+      const timer = setInterval(() => {
+        const b = this.sensors.getB();
+        samples.push({ x: b.x, y: b.y, z: b.z });
+        step++;
+        if (onProgress) onProgress(step / totalSteps);
+        
+        if (step >= totalSteps) {
+          clearInterval(timer);
+          
+          // احسب الحد الأدنى والحد الأقصى لكل محور
+          const minX = Math.min(...samples.map(s => s.x));
+          const maxX = Math.max(...samples.map(s => s.x));
+          const minY = Math.min(...samples.map(s => s.y));
+          const maxY = Math.max(...samples.map(s => s.y));
+          const minZ = Math.min(...samples.map(s => s.z));
+          const maxZ = Math.max(...samples.map(s => s.z));
+          
+          // الانحياز = (Max + Min) / 2
+          this.hardIronOffsets = {
+            ox: (maxX + minX) / 2,
+            oy: (maxY + minY) / 2,
+            oz: (maxZ + minZ) / 2
+          };
+          
+          // Soft Iron Scales = (Max - Min) / 2
+          const rangeX = (maxX - minX) / 2;
+          const rangeY = (maxY - minY) / 2;
+          const rangeZ = (maxZ - minZ) / 2;
+          const maxRange = Math.max(rangeX, rangeY, rangeZ);
+          
+          this.softIronScales = {
+            sx: rangeX > 0 ? maxRange / rangeX : 1,
+            sy: rangeY > 0 ? maxRange / rangeY : 1,
+            sz: rangeZ > 0 ? maxRange / rangeZ : 1
+          };
+          
+          log(`✓ Hard Iron Offsets: ox=${this.hardIronOffsets.ox.toFixed(1)}, oy=${this.hardIronOffsets.oy.toFixed(1)}, oz=${this.hardIronOffsets.oz.toFixed(1)}`, 'ok');
+          log(`✓ Soft Iron Scales: sx=${this.softIronScales.sx.toFixed(3)}, sy=${this.softIronScales.sy.toFixed(3)}, sz=${this.softIronScales.sz.toFixed(3)}`, 'ok');
+          
+          resolve(this.hardIronOffsets);
+        }
+      }, interval);
+    });
   }
 
   /**
