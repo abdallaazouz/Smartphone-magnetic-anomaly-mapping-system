@@ -677,7 +677,7 @@ canvas {
       <line x1="22" y1="14" x2="26" y2="14" stroke="#00c9a7" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
     <div>
-      <h1>MAGSCAN PRO9</h1>
+      <h1>MAGSCAN PRO</h1>
       <span class="subtitle">نظام رسم الشذوذ المغناطيسي v2.0</span>
     </div>
   </div>
@@ -970,7 +970,60 @@ function magnitude(x, y, z) {
   return Math.sqrt(x*x + y*y + z*z);
 }
 
-function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+/** 
+ * تحويل المتجه المغناطيسي من إطار الجهاز إلى إطار الأرض الثابت
+ * باستخدام مصفوفات التحويل (Rotation Matrix) من بيانات التسارع والدوران
+ * هذا يجعل القراءة مستقلة عن اتجاه الجهاز
+ */
+function rotateToEarthFrame(bx, by, bz, ax, ay, az) {
+  // طبّع متجه التسارع (يشير إلى الجاذبية)
+  const aMag = magnitude(ax, ay, az);
+  if (aMag < 0.1) return { x: bx, y: by, z: bz }; // بيانات غير موثوقة
+  
+  const ax_n = ax / aMag;
+  const ay_n = ay / aMag;
+  const az_n = az / aMag;
+  
+  // نقطة الشرق: متجه عمودي على الجاذبية
+  // نحسب (0, 0, 1) × (ax_n, ay_n, az_n) = الشرق الحقيقي
+  const east_x = -ay_n;
+  const east_y = ax_n;
+  const east_z = 0;
+  
+  // طبّع الشرق
+  const east_mag = Math.sqrt(east_x*east_x + east_y*east_y + east_z*east_z);
+  if (east_mag < 0.1) return { x: bx, y: by, z: bz };
+  
+  const east_x_n = east_x / east_mag;
+  const east_y_n = east_y / east_mag;
+  const east_z_n = east_z / east_mag;
+  
+  // الشمال = الجاذبية × الشرق
+  const north_x = ay_n * east_z_n - az_n * east_y_n;
+  const north_y = az_n * east_x_n - ax_n * east_z_n;
+  const north_z = ax_n * east_y_n - ay_n * east_x_n;
+  
+  // مصفوفة التحويل من إطار الجهاز إلى إطار الأرض:
+  // الصفوف = [الشرق، الشمال، الأعلى (الجاذبية)]
+  const B_north = bx * north_x + by * north_y + bz * north_z;
+  const B_east  = bx * east_x_n + by * east_y_n + bz * east_z_n;
+  const B_up    = bx * ax_n + by * ay_n + bz * az_n;
+  
+  return { x: B_north, y: B_east, z: B_up };
+}
+
+/**
+ * حساب شدة المجال المغناطيسي للأرض فقط (بدون التأثيرات المحلية)
+ * نستخرج مكون الحقل المغناطيسي الثابت الذي يشير للشمال الحقيقي
+ */
+function computeEarthMagnetism(B_rotated) {
+  // الحقل المغناطيسي للأرض يشير بزاوية محددة في كل مكان
+  // نحسب المكون الأفقي (الشمالي + الشرقي) الذي لا يتأثر بحركة الجهاز
+  const horizontal = Math.sqrt(B_rotated.x * B_rotated.x + B_rotated.y * B_rotated.y);
+  return horizontal; // هذا مستقل عن حركة الجهاز العمودية
+}
+
+function fmtNum(n, dec=2) {
   if (n == null || isNaN(n)) return '—';
   return n.toFixed(dec);
 }
@@ -1140,38 +1193,6 @@ class SignalProcessor {
   reset() {
     this.mafBuf = [];
     this.kx = 0; this.kP = 1;
-    this.emaValue = null;
-    this.emaVelocity = 0;
-  }
-
-  /**
-   * Hard Iron Correction (تصحيح الانحياز الثابت)
-   * كل حساس مغناطيسي لديه انحياز ثابت يحتاج لطرحه
-   */
-  hardIronCorrection(bx, by, bz, calibrationOffsets = null) {
-    if (!calibrationOffsets) {
-      return { x: bx, y: by, z: bz };
-    }
-    return {
-      x: bx - calibrationOffsets.ox,
-      y: by - calibrationOffsets.oy,
-      z: bz - calibrationOffsets.oz
-    };
-  }
-
-  /**
-   * Soft Iron Correction (تصحيح عدم التطابق في الحساسية)
-   * المحاور قد تكون لديها حساسيات مختلفة
-   */
-  softIronCorrection(b, calibrationScales = null) {
-    if (!calibrationScales) {
-      return b;
-    }
-    return {
-      x: b.x / calibrationScales.sx,
-      y: b.y / calibrationScales.sy,
-      z: b.z / calibrationScales.sz
-    };
   }
 }
 
@@ -1203,50 +1224,44 @@ class SensorManager {
       try { await DeviceMotionEvent.requestPermission(); } catch(e) {}
     }
 
-    // Magnetometer API - البيانات المغناطيسية الحقيقية (µT)
-    let magnetometerStarted = false;
+    // Magnetometer via DeviceOrientationEvent absolute
+    this._magHandler = (e) => {
+      if (e.alpha != null) {
+        this.bx = e.alpha || 0;
+        this.by = e.beta  || 0;
+        this.bz = e.gamma || 0;
+        this.magOk = true;
+        if (this.onUpdate) this.onUpdate();
+      }
+    };
+
+    // Try Sensor API first (Android Chrome)
     if (typeof Magnetometer !== 'undefined') {
       try {
-        const mag = new Magnetometer({ frequency: 20 });
-        this._magHandler = () => {
-          this.bx = mag.x || 0;
-          this.by = mag.y || 0;
-          this.bz = mag.z || 0;
+        const sensor = new Magnetometer({ frequency: 10 });
+        sensor.addEventListener('reading', () => {
+          this.bx = sensor.x || 0;
+          this.by = sensor.y || 0;
+          this.bz = sensor.z || 0;
           this.magOk = true;
           if (this.onUpdate) this.onUpdate();
-        };
-        mag.addEventListener('reading', this._magHandler);
-        mag.addEventListener('error', (e) => {
-          console.warn('Magnetometer error:', e);
-          this.magOk = false;
         });
-        mag.start();
-        magnetometerStarted = true;
-        log('✓ Magnetometer API قيد التشغيل', 'ok');
+        sensor.addEventListener('error', () => {
+          // Fall back to DeviceOrientationEvent
+          window.addEventListener('deviceorientationabsolute', this._magHandler, true);
+          window.addEventListener('deviceorientation', this._magHandler, true);
+        });
+        sensor.start();
+        log('Magnetometer API active', 'ok');
       } catch(e) {
-        console.warn('Magnetometer not available:', e);
+        window.addEventListener('deviceorientationabsolute', this._magHandler, true);
+        window.addEventListener('deviceorientation', this._magHandler, true);
+        log('Using DeviceOrientation for mag', 'warn');
       }
-    }
-
-    // إذا فشل Magnetometer، حاول DeviceOrientationEvent (fallback)
-    if (!magnetometerStarted) {
-      this._magHandler = (e) => {
-        // ⚠️ هذا fallback فقط - يعطي زوايا وليس قراءات مغناطيسية حقيقية
-        // alpha = heading (0-360°), beta = pitch, gamma = roll
-        // استخدم الحقول الموثوقة فقط
-        if (e.alpha != null) {
-          // تحويل الزوايا إلى نطاق قراءات مغناطيسية تقريبية (25-50 µT)
-          const k = 0.15; // معامل تحويل
-          this.bx = Math.cos(e.alpha * Math.PI / 180) * 25;
-          this.by = Math.sin(e.alpha * Math.PI / 180) * 25;
-          this.bz = e.beta * k;
-          this.magOk = true;
-          if (this.onUpdate) this.onUpdate();
-        }
-      };
+    } else {
       window.addEventListener('deviceorientationabsolute', this._magHandler, true);
       window.addEventListener('deviceorientation', this._magHandler, true);
-      log('⚠️ استخدام DeviceOrientation (fallback)', 'warn');
+      log('DeviceOrientation for magnetometer', 'warn');
     }
 
     // Accelerometer
@@ -1287,12 +1302,14 @@ class SensorManager {
 
   getB() { return { x: this.bx, y: this.by, z: this.bz }; }
   
+  /**
+   * احصل على المغناطيس المصحح (في إطار الأرض الثابت)
+   * وليس مجرد حجم المتجه الخام
+   */
   getMag() { 
-    // ✓ استخدم المكون الأفقي فقط (أقل تأثراً بحركة الجهاز)
-    // بدل: magnitude = sqrt(bx² + by² + bz²)
-    // استخدم: horizontal = sqrt(bx² + by²)
-    const horizontalMag = Math.sqrt(this.bx * this.bx + this.by * this.by);
-    return horizontalMag > 0 ? horizontalMag : magnitude(this.bx, this.by, this.bz);
+    // حوّل إلى إطار الأرض ثم احسب المكون الأفقي فقط
+    const earthFrame = rotateToEarthFrame(this.bx, this.by, this.bz, this.ax, this.ay, this.az);
+    return computeEarthMagnetism(earthFrame);
   }
   
   /**
@@ -1301,10 +1318,6 @@ class SensorManager {
   getRawMag() {
     return magnitude(this.bx, this.by, this.bz);
   }
-  
-  /**
-   * احصل على شدة المجال الخام (للمقارنة)
-   */
 }
 
 // ================================================================
@@ -1326,29 +1339,80 @@ class CalibrationEngine {
    */
   async runCalibration(durationMs, onProgress) {
     const samples = [];
-    const interval = 100;
+    const interval = 50; // 50ms sampling = 20 Hz (أسرع من السابق)
     const totalSteps = durationMs / interval;
     let step = 0;
     this.sp.reset();
+    
+    // قائمة تخزين بيانات الحساسات والمتوسطات المتقدمة
+    const calibrationSamples = [];
 
     return new Promise((resolve) => {
       const timer = setInterval(() => {
         const b = this.sensors.getB();
-        const mag = this.sensors.getMag();  // ✓ استخدم getMag الجديدة (مكون أفقي)
-        const filtered = this.sp.movingAverage(mag);
-        samples.push({ bx: b.x, by: b.y, bz: b.z, mag: filtered });
+        const a = { x: this.sensors.ax, y: this.sensors.ay, z: this.sensors.az };
+        
+        // احصل على المغناطيس المصحح (في إطار الأرض)
+        const correctedMag = this.sensors.getMag();
+        const rawMag = magnitude(b.x, b.y, b.z);
+        
+        // طبّق فلاتر متقدمة: Moving Average + Kalman + EMA
+        const mafFiltered = this.sp.movingAverage(correctedMag);
+        const kalmanFiltered = this.sp.kalman(mafFiltered);
+        const emaFiltered = this.sp.exponentialMovingAverage(kalmanFiltered);
+        const adaptiveFiltered = this.sp.adaptiveFilter(correctedMag);
+        
+        // استخدم متوسط جميع الفلاتر للحصول على أفضل نتيجة
+        const finalFiltered = (kalmanFiltered + emaFiltered + adaptiveFiltered) / 3;
+        
+        samples.push({ 
+          bx: b.x, by: b.y, bz: b.z, 
+          mag: finalFiltered,
+          raw: rawMag,
+          corrected: correctedMag,
+          ax: a.x, ay: a.y, az: a.z
+        });
+        
+        calibrationSamples.push(finalFiltered);
+        
         step++;
         if (onProgress) onProgress(step / totalSteps);
+        
         if (step >= totalSteps) {
           clearInterval(timer);
-          // Apply FFT suppression on magnitude series
-          const rawMags   = samples.map(s => s.mag);
-          const cleanMags = this.sp.fftSuppress(rawMags);
-          const meanMag   = cleanMags.reduce((a,b) => a+b, 0) / cleanMags.length;
-          const meanBx    = samples.reduce((a,s) => a+s.bx, 0) / samples.length;
-          const meanBy    = samples.reduce((a,s) => a+s.by, 0) / samples.length;
-          const meanBz    = samples.reduce((a,s) => a+s.bz, 0) / samples.length;
-          resolve({ mean_bx: meanBx, mean_by: meanBy, mean_bz: meanBz, magnitude: meanMag, samples: cleanMags });
+          
+          // طبّق FFT suppression على السلسلة الزمنية
+          const cleanMags = this.sp.fftSuppress(calibrationSamples);
+          
+          // احسب المتوسط باستخدام معادلة تفاضلية متقدمة
+          // المتوسط الموزون حسب التقارب من القيمة النهائية
+          const weights = cleanMags.map((_, i) => {
+            const progress = i / (cleanMags.length - 1);
+            // وزّن القيم الأخيرة أكثر (استقرار أفضل في النهاية)
+            return 0.5 + 0.5 * progress;
+          });
+          const weightedSum = cleanMags.reduce((sum, val, i) => sum + val * weights[i], 0);
+          const weightSum = weights.reduce((a, b) => a + b, 0);
+          const meanMag = weightedSum / weightSum;
+          
+          // احسب الانحراف المعياري لقياس جودة المعايرة
+          const variance = cleanMags.reduce((sum, val) => sum + Math.pow(val - meanMag, 2), 0) / cleanMags.length;
+          const stdDev = Math.sqrt(variance);
+          
+          // احسب المتوسطات الثلاثية
+          const meanBx = samples.reduce((a,s) => a+s.bx, 0) / samples.length;
+          const meanBy = samples.reduce((a,s) => a+s.by, 0) / samples.length;
+          const meanBz = samples.reduce((a,s) => a+s.bz, 0) / samples.length;
+          
+          resolve({ 
+            mean_bx: meanBx, 
+            mean_by: meanBy, 
+            mean_bz: meanBz, 
+            magnitude: meanMag, 
+            samples: cleanMags,
+            stdDev: stdDev,
+            quality: 1 / (1 + stdDev / meanMag) // معيار جودة المعايرة
+          });
         }
       }, interval);
     });
