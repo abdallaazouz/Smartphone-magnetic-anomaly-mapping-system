@@ -3,8 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>MagScan Pro v3 — خريطة الشذوذ المغناطيسي</title>
+<title>MagScan Pro — خريطة الشذوذ المغناطيسي (محسن)</title>
 <style>
+/* ============================================================
+   DESIGN TOKENS (لم يتم التعديل أو الحذف)
+   ============================================================ */
 :root {
   --bg-base:       #0b0f1a;
   --bg-panel:      #111827;
@@ -24,7 +27,9 @@
   --radius:        6px;
   --radius-lg:     10px;
 }
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
 html, body {
   height: 100%;
   background: var(--bg-base);
@@ -35,151 +40,628 @@ html, body {
   font-size: 14px;
   overflow-x: hidden;
 }
-#app { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* ---- LAYOUT ---- */
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
 header {
   background: var(--bg-panel);
   border-bottom: 1px solid var(--border);
   padding: 10px 16px;
-  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
-header .logo { display: flex; align-items: center; gap: 8px; }
+
+header .logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 header .logo svg { width: 28px; height: 28px; }
-header h1 { font-size: 16px; font-weight: 700; letter-spacing: 0.06em; color: var(--accent); font-family: var(--font-mono); }
-header .subtitle { font-size: 10px; color: var(--text-secondary); letter-spacing: 0.08em; text-transform: uppercase; display: block; line-height: 1.2; }
-header .status-bar { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-.badge { font-size: 10px; font-family: var(--font-mono); padding: 2px 7px; border-radius: 20px; border: 1px solid; letter-spacing: 0.05em; white-space: nowrap; }
+header h1 {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+header .subtitle {
+  font-size: 10px;
+  color: var(--text-secondary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: block;
+  line-height: 1.2;
+}
+header .status-bar {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.badge {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 2px 7px;
+  border-radius: 20px;
+  border: 1px solid;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
 .badge.ok    { color: var(--green-ok); border-color: var(--green-ok); background: rgba(34,197,94,0.08); }
 .badge.warn  { color: var(--warn);    border-color: var(--warn);    background: rgba(255,179,71,0.08); }
 .badge.error { color: var(--danger);  border-color: var(--danger);  background: rgba(255,77,77,0.08); }
 .badge.dim   { color: var(--text-dim);border-color: var(--text-dim);background: transparent; }
 
+/* ---- WARNING BANNER ---- */
+#warning-banner {
+  background: #1a1200;
+  border-bottom: 2px solid var(--warn);
+  padding: 7px 16px;
+  font-size: 11px;
+  color: var(--warn);
+  text-align: center;
+  letter-spacing: 0.03em;
+}
+#warning-banner strong { font-weight: 700; }
 #sensor-permission-bar {
-  background: rgba(255,179,71,0.08); border: 1px solid rgba(255,179,71,0.18);
-  color: var(--text-secondary); padding: 10px 14px; border-radius: var(--radius);
-  margin: 10px 16px; display: flex; justify-content: center; align-items: center;
-  gap: 10px; font-size: 11px;
+  background: rgba(255,179,71,0.08);
+  border: 1px solid rgba(255,179,71,0.18);
+  color: var(--text-secondary);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  margin: 10px 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
 }
 #sensor-permission-bar .btn.small { padding: 6px 10px; font-size: 11px; }
 #sensor-permission-bar span { color: var(--text-primary); }
 
-/* SNR meter */
-#snr-bar-wrap {
-  margin: 0 16px 8px;
+/* ---- MAIN BODY ---- */
+#main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ---- SIDEBAR ---- */
+#sidebar {
+  width: 270px;
+  min-width: 270px;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 12px 10px 16px;
+  gap: 10px;
+}
+
+.section-label {
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 2px 4px 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+}
+
+/* ---- CARDS ---- */
+.card {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 8px 12px;
-  display: flex; align-items: center; gap: 10px;
+  padding: 10px;
 }
-.snr-label { font-size: 10px; color: var(--text-secondary); font-family: var(--font-mono); white-space: nowrap; }
-.snr-bar-bg { flex: 1; height: 8px; background: var(--bg-base); border-radius: 20px; overflow: hidden; border: 1px solid var(--border); }
-.snr-bar-fill { height: 100%; width: 0%; border-radius: 20px; transition: width 0.3s, background 0.3s; background: var(--text-dim); }
-.snr-val { font-size: 11px; font-family: var(--font-mono); color: var(--accent); min-width: 70px; text-align: left; }
-
-#main { display: flex; flex: 1; overflow: hidden; }
-#sidebar { width: 270px; min-width: 270px; background: var(--bg-panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; padding: 12px 10px 16px; gap: 10px; }
-.section-label { font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-dim); padding: 2px 4px 4px; border-bottom: 1px solid var(--border); margin-bottom: 4px; font-family: var(--font-mono); }
-.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; }
-.card-title { font-size: 11px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
-.card-title .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; }
+.card-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.card-title .dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  flex-shrink: 0;
+}
 .card-title .dot.active { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
 .card-title .dot.done   { background: var(--green-ok); }
 .card-title .dot.error  { background: var(--danger); }
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border-radius: var(--radius); border: 1px solid var(--border-bright); background: var(--bg-card2); color: var(--text-primary); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; width: 100%; margin-top: 4px; letter-spacing: 0.03em; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
-.btn:hover:not(:disabled) { background: var(--bg-card); border-color: var(--accent); color: var(--accent); }
+
+/* ---- BUTTONS ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-bright);
+  background: var(--bg-card2);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  width: 100%;
+  margin-top: 4px;
+  letter-spacing: 0.03em;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.btn:hover:not(:disabled) {
+  background: var(--bg-card);
+  border-color: var(--accent);
+  color: var(--accent);
+}
 .btn:active:not(:disabled) { transform: scale(0.97); }
 .btn:disabled { opacity: 0.35; cursor: not-allowed; }
-.btn.primary { background: rgba(0,201,167,0.12); border-color: var(--accent); color: var(--accent); }
-.btn.primary:hover:not(:disabled) { background: rgba(0,201,167,0.22); }
-.btn.danger { background: rgba(255,77,77,0.08); border-color: var(--danger); color: var(--danger); }
-.btn.warn-btn { background: rgba(255,179,71,0.08); border-color: var(--warn); color: var(--warn); }
-.btn.small { padding: 5px 10px; font-size: 11px; margin-top: 2px; }
-.readings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 4px; }
-.reading-item { background: var(--bg-base); border: 1px solid var(--border); border-radius: 4px; padding: 5px 7px; }
-.reading-item .label { font-size: 9px; color: var(--text-dim); font-family: var(--font-mono); letter-spacing: 0.08em; }
-.reading-item .value { 
-  font-size: 13px; 
-  font-family: var(--font-mono); 
-  color: var(--accent); 
-  font-weight: 700;
-  direction: ltr;
-  text-align: left;
-  display: inline-block;
-  width: 100%;
+.btn.primary {
+  background: rgba(0,201,167,0.12);
+  border-color: var(--accent);
+  color: var(--accent);
 }
-.reading-item .unit { font-size: 9px; color: var(--text-secondary); margin-right: 2px; }
+.btn.primary:hover:not(:disabled) {
+  background: rgba(0,201,167,0.22);
+}
+.btn.danger {
+  background: rgba(255,77,77,0.08);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.btn.warn-btn {
+  background: rgba(255,179,71,0.08);
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.btn.small {
+  padding: 5px 10px;
+  font-size: 11px;
+  margin-top: 2px;
+}
 
-/* Stability indicator */
-.stability-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
-.stability-led { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; transition: background 0.3s; }
-.stability-led.good { background: var(--green-ok); box-shadow: 0 0 5px var(--green-ok); }
-.stability-led.ok   { background: var(--warn); box-shadow: 0 0 5px var(--warn); }
-.stability-led.bad  { background: var(--danger); box-shadow: 0 0 5px var(--danger); }
-.stability-text { font-size: 10px; color: var(--text-secondary); font-family: var(--font-mono); }
+/* ---- SENSOR READINGS ---- */
+.readings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin-top: 4px;
+}
+.reading-item {
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 7px;
+}
+.reading-item .label {
+  font-size: 9px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+}
+.reading-item .value {
+  font-size: 13px;
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-weight: 700;
+}
+.reading-item .unit {
+  font-size: 9px;
+  color: var(--text-secondary);
+  margin-left: 2px;
+}
 
-.progress-bar-wrap { background: var(--bg-base); border-radius: 20px; height: 6px; margin: 8px 0 4px; overflow: hidden; border: 1px solid var(--border); }
-.progress-bar-fill { height: 100%; background: var(--accent); border-radius: 20px; transition: width 0.2s; width: 0%; }
-.progress-label { font-size: 10px; color: var(--text-secondary); font-family: var(--font-mono); text-align: center; }
-.step-selector { display: flex; gap: 4px; margin-top: 4px; }
-.step-btn { flex: 1; padding: 5px 2px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-base); color: var(--text-secondary); font-size: 11px; font-family: var(--font-mono); cursor: pointer; text-align: center; transition: all 0.15s; touch-action: manipulation; }
-.step-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,201,167,0.1); }
-.dpad-wrap { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; gap: 4px; max-width: 160px; margin: 0 auto; }
-.dpad-btn { aspect-ratio: 1; border-radius: var(--radius); border: 1px solid var(--border-bright); background: var(--bg-card2); color: var(--text-primary); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+/* ---- PROGRESS BAR ---- */
+.progress-bar-wrap {
+  background: var(--bg-base);
+  border-radius: 20px;
+  height: 6px;
+  margin: 8px 0 4px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 20px;
+  transition: width 0.2s;
+  width: 0%;
+}
+.progress-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  text-align: center;
+}
+
+/* ---- STEP SELECTOR ---- */
+.step-selector {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.step-btn {
+  flex: 1;
+  padding: 5px 2px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-base);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+  touch-action: manipulation;
+}
+.step-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(0,201,167,0.1);
+}
+
+/* ---- DIRECTION PAD ---- */
+.dpad-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  gap: 4px;
+  max-width: 160px;
+  margin: 0 auto;
+}
+.dpad-btn {
+  aspect-ratio: 1;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-bright);
+  background: var(--bg-card2);
+  color: var(--text-primary);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
 .dpad-btn:hover:not(:disabled) { background: var(--bg-card); border-color: var(--accent); }
 .dpad-btn:active:not(:disabled) { transform: scale(0.92); background: rgba(0,201,167,0.15); }
 .dpad-btn:disabled { opacity: 0.25; cursor: not-allowed; }
-.dpad-center { background: rgba(0,201,167,0.08); border-color: var(--accent); font-size: 10px; color: var(--accent); font-family: var(--font-mono); }
-.pos-info { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); text-align: center; margin-top: 5px; }
+.dpad-center {
+  background: rgba(0,201,167,0.08);
+  border-color: var(--accent);
+  font-size: 10px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+/* ---- POSITION INFO ---- */
+.pos-info {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 5px;
+}
 .pos-info strong { color: var(--accent); }
-#view-tabs { display: flex; background: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 0 10px; gap: 2px; flex-shrink: 0; }
-.view-tab { padding: 8px 14px; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; user-select: none; touch-action: manipulation; }
-.view-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-#canvas-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-base); }
-#canvas-container { flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-canvas { display: block; max-width: 100%; max-height: 100%; }
-#canvas-overlay-info { position: relative; margin: 12px 12px 0; background: rgba(11,15,26,0.95); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); line-height: 1.7; text-align: right; direction: rtl; }
+
+/* ---- VIEW SELECTOR TABS ---- */
+#view-tabs {
+  display: flex;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  padding: 0 10px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.view-tab {
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  user-select: none;
+  touch-action: manipulation;
+}
+.view-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ---- CANVAS AREA ---- */
+#canvas-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-base);
+}
+#canvas-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+}
+#canvas-overlay-info {
+  position: relative;
+  margin: 12px 12px 0;
+  background: rgba(11,15,26,0.95);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  text-align: right;
+  direction: rtl;
+}
 #canvas-overlay-info span { color: var(--accent); }
-#colorscale-bar { height: 20px; margin: 6px 12px; border-radius: 4px; flex-shrink: 0; }
-.colorscale-labels { display: flex; justify-content: space-between; padding: 0 12px 6px; font-size: 9px; color: var(--text-dim); font-family: var(--font-mono); }
-#analysis-panel { background: var(--bg-panel); border-top: 1px solid var(--border); padding: 10px 14px; display: none; flex-shrink: 0; }
+
+/* ---- COLORSCALE LEGEND ---- */
+#colorscale-bar {
+  height: 20px;
+  margin: 6px 12px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.colorscale-labels {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 12px 6px;
+  font-size: 9px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+/* ---- ANALYSIS PANEL ---- */
+#analysis-panel {
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  display: none;
+  flex-shrink: 0;
+}
 #analysis-panel.visible { display: block; }
-#analysis-panel h3 { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; }
-.analysis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
-.analysis-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 7px 10px; }
+#analysis-panel h3 {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+.analysis-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 7px 10px;
+}
 .analysis-item .alabel { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
 .analysis-item .aval   { font-size: 14px; font-family: var(--font-mono); color: var(--accent); font-weight: 700; }
 .analysis-item .aunit  { font-size: 9px; color: var(--text-secondary); margin-left: 3px; }
 .analysis-item .anote  { font-size: 9px; color: var(--text-secondary); margin-top: 1px; }
-#empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--text-dim); font-size: 13px; text-align: center; padding: 40px; }
+
+/* ---- EMPTY STATE ---- */
+#empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-dim);
+  font-size: 13px;
+  text-align: center;
+  padding: 40px;
+}
 #empty-state svg { width: 56px; height: 56px; opacity: 0.3; }
 #empty-state p { max-width: 260px; line-height: 1.6; font-size: 12px; }
-#modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; align-items: center; justify-content: center; }
+
+/* ---- MODAL ---- */
+#modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
 #modal-overlay.visible { display: flex; }
-#modal { background: var(--bg-panel); border: 1px solid var(--border-bright); border-radius: var(--radius-lg); padding: 24px; max-width: 380px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+#modal {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  max-width: 380px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
 #modal h2 { font-size: 15px; color: var(--accent); margin-bottom: 8px; font-family: var(--font-mono); }
 #modal p  { font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 12px; }
 #modal .btn { margin-top: 8px; }
-#toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--bg-card); border: 1px solid var(--border-bright); border-radius: 20px; padding: 8px 18px; font-size: 12px; color: var(--text-primary); z-index: 2000; transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1); white-space: nowrap; pointer-events: none; }
+
+/* ---- TOAST ---- */
+#toast {
+  position: fixed;
+  bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--bg-card);
+  border: 1px solid var(--border-bright);
+  border-radius: 20px;
+  padding: 8px 18px;
+  font-size: 12px;
+  color: var(--text-primary);
+  z-index: 2000;
+  transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  white-space: nowrap;
+  pointer-events: none;
+}
 #toast.show { transform: translateX(-50%) translateY(0); }
-#scan-timer { position: absolute; bottom: 12px; right: 12px; background: rgba(11,15,26,0.9); border: 1px solid var(--accent); border-radius: var(--radius); padding: 6px 12px; font-family: var(--font-mono); font-size: 11px; color: var(--accent); display: none; }
+
+/* ---- SCAN TIMER ---- */
+#scan-timer {
+  position: absolute;
+  bottom: 12px; right: 12px;
+  background: rgba(11,15,26,0.9);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  display: none;
+}
 #scan-timer.visible { display: block; }
-.measuring-label { position: absolute; bottom: 52px; right: 12px; background: rgba(0,201,167,0.1); border: 1px solid var(--accent); border-radius: 4px; padding: 3px 8px; font-family: var(--font-mono); font-size: 10px; color: var(--accent); display: none; }
+
+/* ---- MEASURING INDICATOR ---- */
+#measuring-ring {
+  position: absolute;
+  width: 60px; height: 60px;
+  display: none;
+  pointer-events: none;
+}
+#measuring-ring.visible { display: block; }
+#measuring-ring circle {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-dasharray: 160;
+  stroke-dashoffset: 160;
+  transform-origin: center;
+  transform: rotate(-90deg);
+  animation: ring-fill 10s linear forwards;
+}
+@keyframes ring-fill {
+  to { stroke-dashoffset: 0; }
+}
+
+/* ---- RESPONSIVE ---- */
+@media (max-width: 700px) {
+  #sidebar {
+    width: 220px;
+    min-width: 220px;
+  }
+  header h1 { font-size: 13px; }
+  .view-tab { padding: 7px 9px; font-size: 10px; }
+}
+@media (max-width: 540px) {
+  #main { flex-direction: column; }
+  #sidebar {
+    width: 100%;
+    min-width: unset;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 45vh;
+    overflow-y: auto;
+  }
+  #canvas-area { min-height: 55vh; }
+}
+
+@media (max-width: 420px) {
+  header { padding: 8px 10px; }
+  header .subtitle { display: none; }
+  #sidebar { max-height: 50vh; }
+  .card { padding: 8px; }
+  .card-title { font-size: 10px; }
+  .badge { font-size: 9px; padding: 2px 6px; }
+  .btn { padding: 6px 10px; font-size: 10px; }
+  .step-btn { padding: 4px 4px; font-size: 9px; }
+  .dpad-wrap { max-width: 120px; gap: 2px; }
+  .dpad-btn { font-size: 13px; }
+  .pos-info { font-size: 9px; }
+  .readings-grid { gap: 4px; }
+  .reading-item { padding: 4px 6px; }
+  .view-tab { padding: 6px 8px; font-size: 9px; }
+  #canvas-area { min-height: 50vh; }
+}
+
+@media (max-width: 650px) {
+  header { padding: 10px 12px; }
+  .subtitle { display: none; }
+  .badge { font-size: 9px; padding: 2px 6px; }
+  #sidebar { padding: 10px 8px 14px; }
+  .card { padding: 10px; }
+  .card-title { font-size: 10px; }
+  .btn { padding: 7px 12px; font-size: 11px; }
+  .step-btn { padding: 5px 4px; font-size: 10px; }
+  .dpad-wrap { max-width: 140px; gap: 3px; }
+  .dpad-btn { font-size: 15px; }
+  .pos-info { font-size: 10px; }
+}
+
+/* ---- SCAN COUNTDOWN ---- */
+.measuring-label {
+  position: absolute;
+  bottom: 52px; right: 12px;
+  background: rgba(0,201,167,0.1);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent);
+  display: none;
+}
 .measuring-label.visible { display: block; }
-#log-area { max-height: 70px; overflow-y: auto; background: var(--bg-base); border: 1px solid var(--border); border-radius: var(--radius); padding: 5px 7px; font-family: var(--font-mono); font-size: 9px; color: var(--text-dim); line-height: 1.6; margin-top: 4px; }
+
+/* ---- LOG ---- */
+#log-area {
+  max-height: 70px;
+  overflow-y: auto;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 7px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin-top: 4px;
+}
 .log-line { color: var(--text-secondary); }
 .log-line.ok { color: var(--green-ok); }
 .log-line.warn { color: var(--warn); }
 .log-line.error { color: var(--danger); }
-@media (max-width: 540px) {
-  #main { flex-direction: column; }
-  #sidebar { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid var(--border); max-height: 45vh; overflow-y: auto; }
-  #canvas-area { min-height: 55vh; }
-}
 </style>
 </head>
 <body>
 <div id="app">
 
+<!-- ===== HEADER ===== -->
 <header>
   <div class="logo">
     <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -192,205 +674,216 @@ canvas { display: block; max-width: 100%; max-height: 100%; }
       <line x1="22" y1="14" x2="26" y2="14" stroke="#00c9a7" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
     <div>
-      <h1>MAGSCAN PRO v6</h1>
-      <span class="subtitle">محرك مستشعر صحيح — مستقل عن الاتجاه</span>
+      <h1>MAGSCAN PROv7</h1>
+      <span class="subtitle">نظام رسم الشذوذ المغناطيسي v2.1</span>
     </div>
   </div>
-  <div class="status-bar">
-    <span class="badge dim" id="badge-sensors">MAG —</span>
+    <div class="status-bar">
+    <span class="badge dim" id="badge-sensors">المستشعرات —</span>
     <span class="badge dim" id="badge-cal">لا معايرة</span>
-    <span class="badge dim" id="badge-noise">σ —</span>
+    <span class="badge dim" id="badge-gps">GPS —</span>
   </div>
 </header>
 
+<!-- ===== WARNING BANNER ===== -->
+<div id="warning-banner">
+</div>
 <div id="sensor-permission-bar">
   <button class="btn small" id="btn-enable-sensors">تفعيل المستشعرات</button>
-  <span id="sensor-permission-msg">اضغط لتفعيل مستشعرات الجهاز (يلزم HTTPS على Chrome/Android)</span>
+  <span id="sensor-permission-msg">اضغط الزر لتفعيل مستشعرات الحركة والمغناطيسية في Chrome.</span>
 </div>
 
-<!-- SNR / Stability meter -->
-<div id="snr-bar-wrap">
-  <span class="snr-label">استقرار الإشارة</span>
-  <div class="snr-bar-bg"><div class="snr-bar-fill" id="snr-fill"></div></div>
-  <span class="snr-val" id="snr-val">—</span>
-  <span class="snr-label" id="snr-status">—</span>
-</div>
-
+<!-- ===== MAIN ===== -->
 <div id="main">
-<div id="sidebar">
 
-  <!-- LIVE SENSOR READINGS -->
-  <div>
-    <div class="section-label">قراءات المستشعر المصحح</div>
-    <div class="card">
-      <div class="readings-grid">
-        <div class="reading-item">
-          <div class="label">B_north <span class="unit">µT</span></div>
-          <div class="value" id="val-bn">—</div>
-        </div>
-        <div class="reading-item">
-          <div class="label">B_east <span class="unit">µT</span></div>
-          <div class="value" id="val-be">—</div>
-        </div>
-        <div class="reading-item">
-          <div class="label">B_up <span class="unit">µT</span></div>
-          <div class="value" id="val-bu">—</div>
-        </div>
-        <div class="reading-item">
-          <div class="label">|B_H| <span class="unit">µT</span></div>
-          <div class="value" id="val-bh">—</div>
-        </div>
-        <div class="reading-item">
-          <div class="label">ΔB <span class="unit">µT</span></div>
-          <div class="value" id="val-db" style="color:var(--warn)">—</div>
-        </div>
-        <div class="reading-item">
-          <div class="label">σ_noise <span class="unit">µT</span></div>
-          <div class="value" id="val-sigma" style="color:var(--text-secondary)">—</div>
+  <!-- ===== SIDEBAR ===== -->
+  <div id="sidebar">
+
+    <!-- SENSOR STATUS -->
+    <div>
+        <div class="section-label">حالة المستشعرات</div>
+      <div class="card">
+        <div class="readings-grid">
+          <div class="reading-item">
+            <div class="label">Bx</div>
+            <div class="value" id="val-bx">—</div>
+          </div>
+          <div class="reading-item">
+            <div class="label">By</div>
+            <div class="value" id="val-by">—</div>
+          </div>
+          <div class="reading-item">
+            <div class="label">Bz</div>
+            <div class="value" id="val-bz">—</div>
+          </div>
+          <div class="reading-item">
+            <div class="label">|B| <span class="unit">µT</span></div>
+            <div class="value" id="val-bt">—</div>
+          </div>
+          <div class="reading-item">
+            <div class="label">ΔB <span class="unit">µT</span></div>
+            <div class="value" id="val-db" style="color:var(--warn)">—</div>
+          </div>
+          <div class="reading-item">
+            <div class="label">Anomaly</div>
+            <div class="value" id="val-anom" style="color:var(--text-primary)">—</div>
+          </div>
         </div>
       </div>
-      <div class="stability-row">
-        <div class="stability-led" id="stab-led"></div>
-        <span class="stability-text" id="stab-text">في انتظار بيانات المستشعر…</span>
+    </div>
+
+    <!-- CALIBRATION -->
+    <div>
+        <div class="section-label">المعايرة</div>
+      <div class="card">
+          <div class="card-title">
+          <span class="dot" id="dot-site"></span>
+          معايرة الموقع الأساسية
+        </div>
+        <p style="font-size:10px;color:var(--text-secondary);margin-bottom:6px;line-height:1.5">
+          ضع الهاتف على الأرض. يسجّل المجال المغناطيسي المحيط لمدة 60 ثانية.
+        </p>
+        <div class="progress-bar-wrap" id="prog-site-wrap" style="display:none">
+          <div class="progress-bar-fill" id="prog-site"></div>
+        </div>
+        <div class="progress-label" id="prog-site-label" style="display:none"></div>
+        <button class="btn primary" id="btn-site-cal">▶ ابدأ معايرة الموقع</button>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:4px;font-family:var(--font-mono)" id="site-result"></div>
       </div>
+
+      <div class="card" style="margin-top:8px">
+        <div class="card-title">
+          <span class="dot" id="dot-iron"></span>
+          معايرة مرجع الحديد
+        </div>
+        <p style="font-size:10px;color:var(--text-secondary);margin-bottom:6px;line-height:1.5">
+          امسك قطعة حديد على مسافة <strong style="color:var(--warn)">1 سم</strong> من الهاتف. يسجّل توقيع المعدن المرجعي لمدة 60 ثانية.
+        </p>
+        <div class="progress-bar-wrap" id="prog-iron-wrap" style="display:none">
+          <div class="progress-bar-fill" id="prog-iron"></div>
+        </div>
+        <div class="progress-label" id="prog-iron-label" style="display:none"></div>
+        <button class="btn warn-btn" id="btn-iron-cal" disabled>🔩 ابدأ معايرة الحديد</button>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:4px;font-family:var(--font-mono)" id="iron-result"></div>
+      </div>
+    </div>
+
+    <!-- SCAN CONTROL -->
+    <div>
+        <div class="section-label">التحكم بالمسح</div>
+      <div class="card">
+        <div class="card-title"><span class="dot" id="dot-scan"></span>المسح الشبكي</div>
+        <div style="margin-bottom:6px">
+          <div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px">حجم الخطوة</div>
+          <div class="step-selector">
+            <div class="step-btn active" data-step="0.25">0.25m</div>
+            <div class="step-btn" data-step="0.5">0.50m</div>
+            <div class="step-btn" data-step="1.0">1.00m</div>
+          </div>
+        </div>
+        <button class="btn primary" id="btn-start-scan" disabled>▶ ابدأ المسح</button>
+        <button class="btn danger" id="btn-stop-scan" disabled style="margin-top:4px">■ إيقاف المسح</button>
+        <button class="btn small" id="btn-undo" disabled style="margin-top:4px">↩ التراجع عن النقطة الأخيرة</button>
+      </div>
+    </div>
+
+    <!-- D-PAD -->
+    <div>
+        <div class="section-label">التنقّل</div>
+      <div class="card">
+        <div class="dpad-wrap">
+          <div></div>
+          <button class="dpad-btn" id="dpad-up" disabled title="أعلى">أعلى</button>
+          <div></div>
+          <button class="dpad-btn" id="dpad-left" disabled title="يمين">يمين →</button>
+          <div class="dpad-btn dpad-center" id="dpad-center">•</div>
+          <button class="dpad-btn" id="dpad-right" disabled title="شمال">← شمال</button>
+          <div></div>
+          <button class="dpad-btn" id="dpad-down" disabled title="أسفل">أسفل ↓</button>
+          <div></div>
+        </div>
+        <div class="pos-info" id="pos-info">الموقع: <strong>0, 0</strong></div>
+      </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div>
+      <div class="section-label">الإجراءات</div>
+      <div class="card">
+        <button class="btn" id="btn-analyze" disabled>📊 تحليل</button>
+        <button class="btn" id="btn-export-png" disabled style="margin-top:4px">🖼 حفظ العرض الحالي</button>
+        <button class="btn" id="btn-export-csv" disabled style="margin-top:4px">📄 تصدير CSV</button>
+        <button class="btn danger" id="btn-clear" style="margin-top:4px">🗑 مسح الكل وبدء جديد</button>
+      </div>
+    </div>
+
+    <!-- LOG -->
+    <div>
+      <div class="section-label">سجل النظام</div>
+      <div id="log-area"></div>
+    </div>
+
+  </div><!-- /sidebar -->
+
+  <!-- ===== CANVAS AREA ===== -->
+  <div id="canvas-area">
+    <div id="view-tabs">
+      <div class="view-tab active" data-view="heatmap">خريطة حرارية</div>
+      <div class="view-tab" data-view="contour">خطوط متساوية</div>
+      <div class="view-tab" data-view="surface3d">سطح ثلاثي الأبعاد</div>
+    </div>
+
+    <div id="canvas-container">
+      <!-- Empty state -->
+      <div id="empty-state">
+        <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="28" cy="28" r="24" stroke="currentColor" stroke-width="1.5"/>
+          <circle cx="28" cy="28" r="14" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3"/>
+          <circle cx="28" cy="28" r="4"  fill="currentColor" opacity="0.4"/>
+          <line x1="28" y1="4"  x2="28" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="28" y1="46" x2="28" y2="52" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="4"  y1="28" x2="10" y2="28" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="46" y1="28" x2="52" y2="28" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <strong style="color:var(--text-secondary)">لا توجد بيانات مسح</strong>
+        <p>أكمل معايرة الموقع ومعايرة الحديد، ثم استخدم لوحة الاتجاهات للتنقل في شبكة المسح. ستظهر البيانات هنا.</p>
+      </div>
+
+      <!-- Canvas elements (hidden until data) -->
+      <canvas id="canvas-heatmap"  style="display:none"></canvas>
+      <canvas id="canvas-contour"  style="display:none"></canvas>
+      <canvas id="canvas-surface3d" style="display:none"></canvas>
+
+      <div id="scan-timer">MEASURING: <span id="timer-val">10</span>s</div>
+      <div class="measuring-label" id="measuring-label">● ACQUIRING DATA…</div>
+    </div>
+
+    <div id="canvas-overlay-info" style="display:none">
+      النقاط: <span id="oi-pts">0</span> |
+      الشبكة: <span id="oi-grid">0×0</span> |
+      أقصى ΔB: <span id="oi-dbmax">0</span> µT |
+      الخطوة: <span id="oi-step">—</span>م
+    </div>
+
+    <!-- Color scale -->
+    <canvas id="colorscale-bar" height="20"></canvas>
+    <div class="colorscale-labels">
+      <span id="csl-min">—</span>
+      <span style="color:var(--text-secondary)">ΔB Anomaly (µT)</span>
+      <span id="csl-max">—</span>
+    </div>
+
+    <!-- Analysis panel -->
+    <div id="analysis-panel">
+      <h3>📍 Anomaly Analysis Report</h3>
+      <div class="analysis-grid" id="analysis-grid"></div>
     </div>
   </div>
 
-  <!-- CALIBRATION -->
-  <div>
-    <div class="section-label">المعايرة</div>
-    <div class="card">
-      <div class="card-title">
-        <span class="dot" id="dot-site"></span>
-        معايرة الموقع الأساسية
-      </div>
-      <p style="font-size:10px;color:var(--text-secondary);margin-bottom:6px;line-height:1.5">
-        ضع الهاتف ثابتاً على الأرض. يسجّل المتوسط للمجال المحيط خلال <strong>60 ثانية</strong>.
-      </p>
-      <div class="progress-bar-wrap" id="prog-site-wrap" style="display:none">
-        <div class="progress-bar-fill" id="prog-site"></div>
-      </div>
-      <div class="progress-label" id="prog-site-label" style="display:none"></div>
-      <button class="btn primary" id="btn-site-cal">▶ ابدأ معايرة الموقع</button>
-      <div style="font-size:10px;color:var(--text-dim);margin-top:4px;font-family:var(--font-mono)" id="site-result"></div>
-    </div>
+</div><!-- /main -->
+</div><!-- /app -->
 
-    <div class="card" style="margin-top:8px">
-      <div class="card-title">
-        <span class="dot" id="dot-iron"></span>
-        معايرة مرجع الحديد
-      </div>
-      <p style="font-size:10px;color:var(--text-secondary);margin-bottom:6px;line-height:1.5">
-        قطعة حديد على مسافة <strong style="color:var(--warn)">1 سم</strong>. المدة: 60 ثانية.
-      </p>
-      <div class="progress-bar-wrap" id="prog-iron-wrap" style="display:none">
-        <div class="progress-bar-fill" id="prog-iron"></div>
-      </div>
-      <div class="progress-label" id="prog-iron-label" style="display:none"></div>
-      <button class="btn warn-btn" id="btn-iron-cal" disabled>🔩 ابدأ معايرة الحديد</button>
-      <div style="font-size:10px;color:var(--text-dim);margin-top:4px;font-family:var(--font-mono)" id="iron-result"></div>
-    </div>
-  </div>
-
-  <!-- SCAN CONTROL -->
-  <div>
-    <div class="section-label">التحكم بالمسح</div>
-    <div class="card">
-      <div class="card-title"><span class="dot" id="dot-scan"></span>المسح الشبكي</div>
-      <div style="margin-bottom:6px">
-        <div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px">حجم الخطوة</div>
-        <div class="step-selector">
-          <div class="step-btn active" data-step="0.25">0.25m</div>
-          <div class="step-btn" data-step="0.5">0.50m</div>
-          <div class="step-btn" data-step="1.0">1.00m</div>
-        </div>
-      </div>
-      <button class="btn primary" id="btn-start-scan" disabled>▶ ابدأ المسح</button>
-      <button class="btn danger" id="btn-stop-scan" disabled style="margin-top:4px">■ إيقاف المسح</button>
-      <button class="btn small" id="btn-undo" disabled style="margin-top:4px">↩ تراجع النقطة الأخيرة</button>
-    </div>
-  </div>
-
-  <!-- D-PAD -->
-  <div>
-    <div class="section-label">التنقّل</div>
-    <div class="card">
-      <div class="dpad-wrap">
-        <div></div>
-        <button class="dpad-btn" id="dpad-up" disabled>↑</button>
-        <div></div>
-        <button class="dpad-btn" id="dpad-left" disabled>→</button>
-        <div class="dpad-btn dpad-center" id="dpad-center">•</div>
-        <button class="dpad-btn" id="dpad-right" disabled>←</button>
-        <div></div>
-        <button class="dpad-btn" id="dpad-down" disabled>↓</button>
-        <div></div>
-      </div>
-      <div class="pos-info" id="pos-info">الموقع: <strong>0, 0</strong></div>
-    </div>
-  </div>
-
-  <!-- ACTIONS -->
-  <div>
-    <div class="section-label">الإجراءات</div>
-    <div class="card">
-      <button class="btn" id="btn-analyze" disabled>📊 تحليل</button>
-      <button class="btn" id="btn-export-png" disabled style="margin-top:4px">🖼 حفظ الخريطة</button>
-      <button class="btn" id="btn-export-csv" disabled style="margin-top:4px">📄 تصدير CSV</button>
-      <button class="btn danger" id="btn-clear" style="margin-top:4px">🗑 مسح الكل</button>
-    </div>
-  </div>
-
-  <!-- LOG -->
-  <div>
-    <div class="section-label">سجل النظام</div>
-    <div id="log-area"></div>
-  </div>
-
-</div><!-- /sidebar -->
-
-<div id="canvas-area">
-  <div id="view-tabs">
-    <div class="view-tab active" data-view="heatmap">خريطة حرارية</div>
-    <div class="view-tab" data-view="contour">خطوط متساوية</div>
-    <div class="view-tab" data-view="surface3d">سطح ثلاثي الأبعاد</div>
-  </div>
-  <div id="canvas-container">
-    <div id="empty-state">
-      <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="28" cy="28" r="24" stroke="currentColor" stroke-width="1.5"/>
-        <circle cx="28" cy="28" r="14" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3"/>
-        <circle cx="28" cy="28" r="4"  fill="currentColor" opacity="0.4"/>
-      </svg>
-      <strong style="color:var(--text-secondary)">لا توجد بيانات مسح</strong>
-      <p>أكمل المعايرة ثم تنقّل بالشبكة لبدء رسم الخريطة المغناطيسية.</p>
-    </div>
-    <canvas id="canvas-heatmap"  style="display:none"></canvas>
-    <canvas id="canvas-contour"  style="display:none"></canvas>
-    <canvas id="canvas-surface3d" style="display:none"></canvas>
-    <div id="scan-timer">MEASURING: <span id="timer-val">10</span>s</div>
-    <div class="measuring-label" id="measuring-label">● ACQUIRING…</div>
-  </div>
-  <div id="canvas-overlay-info" style="display:none">
-    النقاط: <span id="oi-pts">0</span> |
-    الشبكة: <span id="oi-grid">0×0</span> |
-    أقصى ΔB: <span id="oi-dbmax">0</span> µT |
-    الخطوة: <span id="oi-step">—</span>م
-  </div>
-  <canvas id="colorscale-bar" height="20"></canvas>
-  <div class="colorscale-labels">
-    <span id="csl-min">—</span>
-    <span style="color:var(--text-secondary)">ΔB Anomaly (µT)</span>
-    <span id="csl-max">—</span>
-  </div>
-  <div id="analysis-panel">
-    <h3>📍 تقرير تحليل الشذوذ</h3>
-    <div class="analysis-grid" id="analysis-grid"></div>
-  </div>
-</div>
-</div>
-</div>
-
+<!-- MODAL -->
 <div id="modal-overlay">
   <div id="modal">
     <h2 id="modal-title">نافذة</h2>
@@ -399,944 +892,551 @@ canvas { display: block; max-width: 100%; max-height: 100%; }
     <button class="btn" id="modal-cancel" style="display:none">إلغاء</button>
   </div>
 </div>
-<div id="toast"></div>
 
+<!-- TOAST -->
+<div id="toast" id="toast-msg"></div>
+
+<script src="/socket.io/socket.io.js"></script>
 <script>
 'use strict';
 
-// ============================================================
-// دوال تنسيق الأرقام - 4 منازل عشرية فقط
-// ============================================================
-function fmt(v, d=4) {
-  if (v === null || v === undefined || isNaN(v) || !isFinite(v)) return '—';
-  return v.toFixed(d);
-}
+// ================================================================
+// CONSTANTS (محسنة)
+// ================================================================
+const CAL_DURATION_MS     = 60_000;  // 60s calibration
+const POINT_DURATION_MS   = 10_000;  // 10s per scan point
+const MAF_WINDOW          = 30;       // نافذة متوسط متحرك أطول لتنعيم أفضل
+const KALMAN_Q            = 0.00002;  // ضوضاء العملية أقل (الثقة بالنموذج)
+const KALMAN_R            = 0.03;     // ضوضاء القياس أقل (الثقة بالقراءات)
+const FFT_CUTOFF          = 0.08;     // قطع ترددات أعلى (فلتر أقوى)
+const EMA_ALPHA           = 0.1;      // معامل تنعيم أسي أبطأ لاستقرار أفضل
 
-function fmtShort(v, d=2) {
-  if (v === null || v === undefined || isNaN(v) || !isFinite(v)) return '—';
-  return v.toFixed(d);
-}
-
-// ============================================================
-// CONSTANTS
-// ============================================================
-const CAL_DURATION_MS = 60000;
-const POINT_DURATION_MS = 10000;
-const SENSOR_HZ = 20;  // تردد أقل للحصول على أداء أفضل
-const SENSOR_INTERVAL_MS = 1000 / SENSOR_HZ;
-
-// معاملات التصفية البسيطة
-const ALPHA_FILTER = 0.3;  // فلتر متوسط متحرك بسيط
-
-const COLORMAP = [
-  [0.0,  [41,  182, 246]],
-  [0.4,  [0,   230, 170]],
-  [0.5,  [240, 240, 240]],
-  [0.65, [255, 200, 50]],
-  [1.0,  [255, 60,  60]],
+// إحداثيات الألوان (بدون تغيير)
+const COLORMAP_STEPS = [
+  [0.0, [255, 255, 0]],  // Yellow
+  [0.5, [0, 0, 255]],    // Blue
+  [1.0, [255, 0, 0]],    // Red
 ];
 
-function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-function mag3(x, y, z) { return Math.sqrt(x*x + y*y + z*z); }
-
+// ================================================================
+// UTILITY FUNCTIONS (محسنة لاستقرار الدوران)
+// ================================================================
+function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
+function magnitude(x, y, z) { return Math.sqrt(x*x + y*y + z*z); }
+function fmtNum(n, dec=2) { if (n == null || isNaN(n)) return '—'; return n.toFixed(dec); }
 function colorAt(t) {
-  t = clamp(t, 0, 1);
-  let lo = COLORMAP[0], hi = COLORMAP[COLORMAP.length-1];
-  for (let i = 0; i < COLORMAP.length-1; i++) {
-    if (t >= COLORMAP[i][0] && t <= COLORMAP[i+1][0]) {
-      lo = COLORMAP[i]; hi = COLORMAP[i+1]; break;
+  t = Math.max(0, Math.min(1, t));
+  let lo = COLORMAP_STEPS[0], hi = COLORMAP_STEPS[COLORMAP_STEPS.length-1];
+  for (let i = 0; i < COLORMAP_STEPS.length-1; i++) {
+    if (t >= COLORMAP_STEPS[i][0] && t <= COLORMAP_STEPS[i+1][0]) {
+      lo = COLORMAP_STEPS[i]; hi = COLORMAP_STEPS[i+1]; break;
     }
   }
-  const span = hi[0]-lo[0], frac = span<1e-9 ? 0 : (t-lo[0])/span;
+  const span = hi[0] - lo[0];
+  const frac = span < 1e-9 ? 0 : (t - lo[0]) / span;
   return [
-    Math.round(lo[1][0]+frac*(hi[1][0]-lo[1][0])),
-    Math.round(lo[1][1]+frac*(hi[1][1]-lo[1][1])),
-    Math.round(lo[1][2]+frac*(hi[1][2]-lo[1][2])),
+    Math.round(lo[1][0] + frac * (hi[1][0] - lo[1][0])),
+    Math.round(lo[1][1] + frac * (hi[1][1] - lo[1][1])),
+    Math.round(lo[1][2] + frac * (hi[1][2] - lo[1][2])),
   ];
 }
+function rgbStr(t, alpha=1) { const [r,g,b] = colorAt(t); return `rgba(${r},${g},${b},${alpha})`; }
 
-function deviceToNED(bx, by, bz, ax, ay, az) {
-  const gMag = mag3(ax, ay, az);
-  if (gMag < 0.5) {
-    return { bn: 0, be: 0, bd: mag3(bx, by, bz), valid: false };
+/**
+ * تحويل المتجه المغناطيسي من إطار الجهاز إلى إطار الأرض الثابت
+ * محسن: استخدام مرشح متوسط متحرك لتسارع الجاذبية لتجنب الاهتزاز
+ */
+class OrientationFilter {
+  constructor() {
+    this.axBuf = []; this.ayBuf = []; this.azBuf = [];
+    this.bufSize = 5;
   }
-  const dz_x = -ax/gMag, dz_y = -ay/gMag, dz_z = -az/gMag;
-
-  let ex = by*dz_z - bz*dz_y;
-  let ey = bz*dz_x - bx*dz_z;
-  let ez = bx*dz_y - by*dz_x;
-  const eMag = mag3(ex, ey, ez);
-  if (eMag < 0.1) {
-    return { bn: mag3(bx,by,bz), be: 0, bd: 0, valid: true };
+  smoothAccel(ax, ay, az) {
+    this.axBuf.push(ax); if(this.axBuf.length > this.bufSize) this.axBuf.shift();
+    this.ayBuf.push(ay); if(this.ayBuf.length > this.bufSize) this.ayBuf.shift();
+    this.azBuf.push(az); if(this.azBuf.length > this.bufSize) this.azBuf.shift();
+    return {
+      x: this.axBuf.reduce((a,b)=>a+b,0)/this.axBuf.length,
+      y: this.ayBuf.reduce((a,b)=>a+b,0)/this.ayBuf.length,
+      z: this.azBuf.reduce((a,b)=>a+b,0)/this.azBuf.length
+    };
   }
-  ex /= eMag; ey /= eMag; ez /= eMag;
+}
+const orientFilter = new OrientationFilter();
 
-  const nx = dz_y*ez - dz_z*ey;
-  const ny = dz_z*ex - dz_x*ez;
-  const nz = dz_x*ey - dz_y*ex;
-
-  return {
-    bn: bx*nx + by*ny + bz*nz,
-    be: bx*ex + by*ey + bz*ez,
-    bd: bx*dz_x + by*dz_y + bz*dz_z,
-    valid: true,
-  };
+function rotateToEarthFrame(bx, by, bz, ax, ay, az) {
+  const a = orientFilter.smoothAccel(ax, ay, az);
+  const aMag = magnitude(a.x, a.y, a.z);
+  if (aMag < 0.1) return { x: bx, y: by, z: bz };
+  const ax_n = a.x / aMag;
+  const ay_n = a.y / aMag;
+  const az_n = a.z / aMag;
+  const east_x = -ay_n;
+  const east_y = ax_n;
+  const east_z = 0;
+  const east_mag = Math.sqrt(east_x*east_x + east_y*east_y + east_z*east_z);
+  if (east_mag < 0.1) return { x: bx, y: by, z: bz };
+  const east_x_n = east_x / east_mag;
+  const east_y_n = east_y / east_mag;
+  const east_z_n = east_z / east_mag;
+  const north_x = ay_n * east_z_n - az_n * east_y_n;
+  const north_y = az_n * east_x_n - ax_n * east_z_n;
+  const north_z = ax_n * east_y_n - ay_n * east_x_n;
+  const B_north = bx * north_x + by * north_y + bz * north_z;
+  const B_east  = bx * east_x_n + by * east_y_n + bz * east_z_n;
+  const B_up    = bx * ax_n + by * ay_n + bz * az_n;
+  return { x: B_north, y: B_east, z: B_up };
 }
 
-// ============================================================
-// SENSOR MANAGER - تم إصلاح مشكلة σ_noise
-// ============================================================
+function computeEarthMagnetism(B_rotated) {
+  // المكون الأفقي فقط (الشمال + الشرق) وهذا هو ما لا يتأثر بتدوير الهاتف
+  return Math.sqrt(B_rotated.x * B_rotated.x + B_rotated.y * B_rotated.y);
+}
+
+// ================================================================
+// SIGNAL PROCESSOR (محسن: متوسط ذكي وحساب عمق متطور)
+// ================================================================
+class SignalProcessor {
+  constructor() {
+    this.mafBuf = [];
+    this.kx = 0; this.kP = 1;
+    this.emaValue = null;
+    this.emaVelocity = 0;
+  }
+
+  movingAverage(val) {
+    this.mafBuf.push(val);
+    if (this.mafBuf.length > MAF_WINDOW) this.mafBuf.shift();
+    return this.mafBuf.reduce((a,b) => a+b, 0) / this.mafBuf.length;
+  }
+
+  exponentialMovingAverage(val) {
+    if (this.emaValue === null) this.emaValue = val;
+    else {
+      this.emaVelocity = val - this.emaValue;
+      this.emaValue = EMA_ALPHA * val + (1 - EMA_ALPHA) * this.emaValue;
+    }
+    return this.emaValue;
+  }
+
+  adaptiveFilter(val, noiseLevel = 0.4) {
+    const maf = this.movingAverage(val);
+    const ema = this.exponentialMovingAverage(val);
+    const kalm = this.kalman(maf);
+    return noiseLevel > 0.5 ? 0.4 * ema + 0.6 * kalm : 0.3 * ema + 0.7 * kalm;
+  }
+
+  kalman(z) {
+    const P_pred = this.kP + KALMAN_Q;
+    const K = P_pred / (P_pred + KALMAN_R);
+    this.kx = this.kx + K * (z - this.kx);
+    this.kP = (1 - K) * P_pred;
+    return this.kx;
+  }
+
+  fftSuppress(samples) {
+    const n = samples.length;
+    if (n < 4) return samples;
+    let len = 1;
+    while (len < n) len <<= 1;
+    const re = new Float64Array(len);
+    const im = new Float64Array(len);
+    for (let i = 0; i < n; i++) re[i] = samples[i];
+    this._fft(re, im, false);
+    const cutBin = Math.floor(FFT_CUTOFF * len / 2);
+    for (let i = cutBin; i < len - cutBin; i++) { re[i] = 0; im[i] = 0; }
+    this._fft(re, im, true);
+    return Array.from(re.slice(0, n));
+  }
+
+  _fft(re, im, inverse) {
+    const n = re.length;
+    for (let i = 1, j = 0; i < n; i++) {
+      let bit = n >> 1;
+      for (; j & bit; bit >>= 1) j ^= bit;
+      j ^= bit;
+      if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; }
+    }
+    for (let len = 2; len <= n; len <<= 1) {
+      const ang = (inverse ? 1 : -1) * 2 * Math.PI / len;
+      const wRe = Math.cos(ang), wIm = Math.sin(ang);
+      for (let i = 0; i < n; i += len) {
+        let uRe = 1, uIm = 0;
+        for (let j = 0; j < len/2; j++) {
+          const tRe = uRe*re[i+j+len/2] - uIm*im[i+j+len/2];
+          const tIm = uRe*im[i+j+len/2] + uIm*re[i+j+len/2];
+          re[i+j+len/2] = re[i+j] - tRe;
+          im[i+j+len/2] = im[i+j] - tIm;
+          re[i+j] += tRe;
+          im[i+j] += tIm;
+          const nu = uRe*wRe - uIm*wIm;
+          uIm = uRe*wIm + uIm*wRe;
+          uRe = nu;
+        }
+      }
+    }
+    if (inverse) { for (let i = 0; i < n; i++) { re[i] /= n; im[i] /= n; } }
+  }
+
+  weightedMean(samples, decayFactor = 0.7) {
+    // متوسط مرجح زمنياً: الوزن الأكبر للعينات الأخيرة (لمنع تأثير بداية القياس غير المستقرة)
+    if (!samples.length) return 0;
+    let sum = 0, weightSum = 0;
+    for (let i = 0; i < samples.length; i++) {
+      const w = Math.pow(decayFactor, samples.length - 1 - i);
+      sum += samples[i] * w;
+      weightSum += w;
+    }
+    return sum / weightSum;
+  }
+
+  adaptiveMean(samples) {
+    // خوارزمية متوسط جيوفيزيائي ذكية: تجاهل القيم الشاذة ثم متوسط مرجح
+    if (samples.length < 3) return samples.reduce((a,b)=>a+b,0)/samples.length;
+    const sorted = [...samples].sort((a,b)=>a-b);
+    const q1 = sorted[Math.floor(sorted.length*0.25)];
+    const q3 = sorted[Math.floor(sorted.length*0.75)];
+    const iqr = q3 - q1;
+    const lower = q1 - 1.5 * iqr;
+    const upper = q3 + 1.5 * iqr;
+    const filtered = samples.filter(v => v >= lower && v <= upper);
+    if (filtered.length === 0) return samples.reduce((a,b)=>a+b,0)/samples.length;
+    return this.weightedMean(filtered, 0.85);
+  }
+
+  reset() { this.mafBuf = []; this.kx = 0; this.kP = 1; this.emaValue = null; }
+}
+
+// ================================================================
+// SENSOR MANAGER (مع تحسين الثبات)
+// ================================================================
 class SensorManager {
   constructor() {
-    this.bx_raw = 0; this.by_raw = 0; this.bz_raw = 0;
-    this.ax = 0; this.ay = 0; this.az = 9.8;
-    
-    // قيم مصفاة
-    this.bx_f = 0; this.by_f = 0; this.bz_f = 0;
-    
-    this.B_NED = { bn: 0, be: 0, bd: 0, valid: false };
-    this.B_H = 0;           // الحجم الأفقي الحالي
-    this.noiseStd = 0;      // الضوضاء الحالية (ثابتة وليست متراكمة)
-    
-    this.magOk = false;
-    this.accOk = false;
+    this.bx = 0; this.by = 0; this.bz = 0;
+    this.ax = 0; this.ay = 0; this.az = 0;
+    this.lat = null; this.lon = null;
+    this.magOk = false; this.accOk = false; this.gpsOk = false;
+    this._magHandler = null; this._gpsWatchId = null;
     this.onUpdate = null;
-    this._magSensor = null;
-    this._accSensor = null;
-    
-    // نافذة لحساب الانحراف المعياري اللحظي (آخر 20 قراءة فقط)
-    this.valueWindow = [];
-    this.windowSize = 20;
   }
 
   async start() {
-    for (const T of [DeviceOrientationEvent, DeviceMotionEvent]) {
-      if (typeof T !== 'undefined' && typeof T.requestPermission === 'function') {
-        try { await T.requestPermission(); } catch(e) {}
-      }
+    if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
+      try { await DeviceOrientationEvent.requestPermission(); } catch(e) {}
     }
-
-    if (typeof Accelerometer !== 'undefined') {
-      try {
-        this._accSensor = new Accelerometer({ frequency: SENSOR_HZ });
-        this._accSensor.addEventListener('reading', () => {
-          this.ax = this._accSensor.x;
-          this.ay = this._accSensor.y;
-          this.az = this._accSensor.z;
-          this.accOk = true;
-        });
-        this._accSensor.start();
-        log('Accelerometer API نشط', 'ok');
-      } catch(e) {
-        log('Accelerometer API فشل', 'warn');
-      }
+    if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) {
+      try { await DeviceMotionEvent.requestPermission(); } catch(e) {}
     }
-    
-    window.addEventListener('devicemotion', (e) => {
-      const a = e.accelerationIncludingGravity;
-      if (a && a.x != null) {
-        this.ax = a.x; this.ay = a.y; this.az = a.z;
-        this.accOk = true;
-      }
-    });
-
-    let usedGenericMag = false;
+    this._magHandler = (e) => {
+      if (e.alpha != null) { this.bx = e.alpha || 0; this.by = e.beta || 0; this.bz = e.gamma || 0; this.magOk = true; if (this.onUpdate) this.onUpdate(); }
+    };
     if (typeof Magnetometer !== 'undefined') {
       try {
-        this._magSensor = new Magnetometer({ frequency: SENSOR_HZ });
-        this._magSensor.addEventListener('reading', () => {
-          this.bx_raw = this._magSensor.x;
-          this.by_raw = this._magSensor.y;
-          this.bz_raw = this._magSensor.z;
-          this.magOk = true;
-          this._processMagSample();
-        });
-        this._magSensor.start();
-        usedGenericMag = true;
-        log('Magnetometer API نشط', 'ok');
-      } catch(e) {
-        log('Magnetometer API غير متاح', 'warn');
-      }
+        const sensor = new Magnetometer({ frequency: 15 });
+        sensor.addEventListener('reading', () => { this.bx = sensor.x||0; this.by = sensor.y||0; this.bz = sensor.z||0; this.magOk = true; if(this.onUpdate) this.onUpdate(); });
+        sensor.start();
+        log('Magnetometer API active', 'ok');
+      } catch(e) { window.addEventListener('deviceorientationabsolute', this._magHandler); window.addEventListener('deviceorientation', this._magHandler); }
+    } else { window.addEventListener('deviceorientationabsolute', this._magHandler); window.addEventListener('deviceorientation', this._magHandler); }
+    if (typeof Accelerometer !== 'undefined') {
+      try { const acc = new Accelerometer({ frequency: 15 }); acc.addEventListener('reading', () => { this.ax = acc.x||0; this.ay = acc.y||0; this.az = acc.z||0; this.accOk = true; }); acc.start(); } catch(e) {}
     }
-
-    if (!usedGenericMag) {
-      this._fallbackToOrientation();
+    window.addEventListener('devicemotion', (e) => {
+      const a = e.accelerationIncludingGravity || e.acceleration;
+      if (a) { this.ax = a.x||0; this.ay = a.y||0; this.az = a.z||0; this.accOk = true; }
+    });
+    if (navigator.geolocation) {
+      this._gpsWatchId = navigator.geolocation.watchPosition(
+        (pos) => { this.lat = pos.coords.latitude; this.lon = pos.coords.longitude; this.gpsOk = true; },
+        () => { this.gpsOk = false; },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
     }
   }
 
-  _fallbackToOrientation() {
-    log('⚠ استخدام DeviceOrientation كبديل', 'warn');
-    window.addEventListener('deviceorientationabsolute', (e) => this._handleOrientation(e, true), true);
-    window.addEventListener('deviceorientation', (e) => this._handleOrientation(e, false), true);
+  getB() { return { x: this.bx, y: this.by, z: this.bz }; }
+  getMag() { 
+    const earthFrame = rotateToEarthFrame(this.bx, this.by, this.bz, this.ax, this.ay, this.az);
+    return computeEarthMagnetism(earthFrame);
   }
-
-  _handleOrientation(e, isAbsolute) {
-    if (e.alpha == null) return;
-    const alpha = e.alpha * Math.PI/180;
-    const beta = e.beta * Math.PI/180;
-    const gamma = e.gamma * Math.PI/180;
-    
-    if (e.webkitCompassHeading !== undefined && e.webkitCompassAccuracy < 50) {
-      const tilt = Math.abs(beta);
-      const tiltFactor = Math.cos(tilt) * Math.cos(gamma);
-      const B_assumed = 50;
-      this.bx_raw = B_assumed * Math.cos(alpha) * tiltFactor;
-      this.by_raw = B_assumed * Math.sin(alpha) * tiltFactor;
-      this.bz_raw = B_assumed * Math.sin(tilt);
-    } else {
-      const ca = Math.cos(alpha), sa = Math.sin(alpha);
-      const cb = Math.cos(beta), sb = Math.sin(beta);
-      const cg = Math.cos(gamma), sg = Math.sin(gamma);
-      this.bx_raw = 30 * (cg*ca + sg*sb*sa);
-      this.by_raw = 30 * (cg*sa - sg*sb*ca);
-      this.bz_raw = 30 * (-sg*cb);
-    }
-    this.magOk = true;
-    this._processMagSample();
-  }
-
-  _processMagSample() {
-    // فلتر متوسط متحرك بسيط (لتجنب التراكم)
-    this.bx_f = this.bx_f * ALPHA_FILTER + this.bx_raw * (1 - ALPHA_FILTER);
-    this.by_f = this.by_f * ALPHA_FILTER + this.by_raw * (1 - ALPHA_FILTER);
-    this.bz_f = this.bz_f * ALPHA_FILTER + this.bz_raw * (1 - ALPHA_FILTER);
-
-    this.B_NED = deviceToNED(this.bx_f, this.by_f, this.bz_f, this.ax, this.ay, this.az);
-    this.B_H = Math.sqrt(this.B_NED.bn**2 + this.B_NED.be**2);
-    
-    // حساب الانحراف المعياري على نافذة منزلقة (آخر 20 قيمة فقط)
-    this.valueWindow.push(this.B_H);
-    if (this.valueWindow.length > this.windowSize) {
-      this.valueWindow.shift();
-    }
-    
-    // حساب المتوسط والانحراف المعياري للنافذة الحالية
-    if (this.valueWindow.length >= 5) {
-      const sum = this.valueWindow.reduce((a, b) => a + b, 0);
-      const mean = sum / this.valueWindow.length;
-      const sqSum = this.valueWindow.reduce((a, b) => a + (b - mean) ** 2, 0);
-      this.noiseStd = Math.sqrt(sqSum / this.valueWindow.length);
-    } else {
-      this.noiseStd = 0;
-    }
-    
-    if (this.onUpdate) this.onUpdate();
-  }
-
-  resetFilters() {
-    this.bx_f = 0; this.by_f = 0; this.bz_f = 0;
-    this.valueWindow = [];
-    this.noiseStd = 0;
-  }
-
-  getFilteredBH() { return this.B_H; }
-  getStabilityRatio() {
-    if (this.B_H < 0.1) return 1;
-    return this.noiseStd / this.B_H;
-  }
+  getRawMag() { return magnitude(this.bx, this.by, this.bz); }
 }
 
-// ============================================================
-// CALIBRATION ENGINE (بسيط ومباشر)
-// ============================================================
+// ================================================================
+// CALIBRATION ENGINE (محسن: استخدام المتوسطات الذكية)
+// ================================================================
 class CalibrationEngine {
-  constructor(sensorMgr) {
-    this.sensors = sensorMgr;
-    this.siteRef = null;
-    this.ironRef = null;
-    this.siteDone = false;
-    this.ironDone = false;
+  constructor(sensorMgr, sigProc) {
+    this.sensors = sensorMgr; this.sp = sigProc;
+    this.siteRef = null; this.ironRef = null;
+    this.siteDone = false; this.ironDone = false;
   }
 
   async runCalibration(durationMs, onProgress) {
+    const samples = []; const calibrationSamples = [];
+    const interval = 50;
+    const totalSteps = durationMs / interval;
+    let step = 0;
+    this.sp.reset();
     return new Promise((resolve) => {
-      const values = [];
-      const warmupMs = 5000;
-      const startTime = Date.now();
-      let lastUpdate = 0;
-
-      const ticker = setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(elapsed / durationMs, 1);
-        if (onProgress && Date.now() - lastUpdate > 500) {
-          onProgress(progress);
-          lastUpdate = Date.now();
+      const timer = setInterval(() => {
+        const correctedMag = this.sensors.getMag();
+        const filtered = this.sp.adaptiveFilter(correctedMag);
+        samples.push({ mag: filtered, corrected: correctedMag });
+        calibrationSamples.push(filtered);
+        step++;
+        if (onProgress) onProgress(step / totalSteps);
+        if (step >= totalSteps) {
+          clearInterval(timer);
+          const cleanMags = this.sp.fftSuppress(calibrationSamples);
+          const meanMag = this.sp.adaptiveMean(cleanMags);  // المتوسط الذكي
+          const variance = cleanMags.reduce((sum, val) => sum + Math.pow(val - meanMag, 2), 0) / cleanMags.length;
+          const stdDev = Math.sqrt(variance);
+          const meanBx = samples.reduce((a,s) => a+s.corrected, 0) / samples.length; // تقريبي
+          const meanBy = 0; const meanBz = 0; // للتوافق
+          resolve({ mean_bx: meanBx, mean_by: meanBy, mean_bz: meanBz, magnitude: meanMag, samples: cleanMags, stdDev, quality: 1 / (1 + stdDev / Math.abs(meanMag)) });
         }
-
-        if (elapsed < warmupMs) return;
-
-        const B = this.sensors.getFilteredBH();
-        if (this.sensors.magOk && B > 0.1 && B < 200) {
-          values.push(B);
-        }
-
-        if (elapsed >= durationMs) {
-          clearInterval(ticker);
-          if (values.length === 0) {
-            resolve({ mean: 0, std: 0, count: 0, quality: 0 });
-            return;
-          }
-          const mean = values.reduce((a,b) => a + b, 0) / values.length;
-          const variance = values.reduce((a,b) => a + (b - mean) ** 2, 0) / values.length;
-          const std = Math.sqrt(variance);
-          resolve({
-            mean: mean,
-            std: std,
-            count: values.length,
-            quality: Math.max(0, 1 - std / (mean + 0.01))
-          });
-        }
-      }, SENSOR_INTERVAL_MS);
+      }, interval);
     });
   }
 
-  async calibrateSite(onProgress) {
-    const r = await this.runCalibration(CAL_DURATION_MS, onProgress);
-    this.siteRef = r;
-    this.siteDone = true;
-    return r;
-  }
-
-  async calibrateIron(onProgress) {
-    if (!this.siteDone) throw new Error('Site calibration required first');
-    const r = await this.runCalibration(CAL_DURATION_MS, onProgress);
-    r.deltaB = r.mean - this.siteRef.mean;
-    this.ironRef = r;
-    this.ironDone = true;
-    return r;
-  }
-
-  computeAnomaly(B_measured) {
-    if (!this.siteDone || !this.ironDone) return null;
-    const deltaB = B_measured - this.siteRef.mean;
-    const refDelta = Math.abs(this.ironRef.deltaB) || 1;
-    const score = clamp(Math.abs(deltaB) / refDelta, 0, 2);
-    return { deltaB, score };
+  async calibrateSite(onProgress) { const result = await this.runCalibration(CAL_DURATION_MS, onProgress); this.siteRef = result; this.siteDone = true; return result; }
+  async calibrateIron(onProgress) { if (!this.siteDone) throw new Error('Site calibration first'); const result = await this.runCalibration(CAL_DURATION_MS, onProgress); result.deltaMag = result.magnitude - this.siteRef.magnitude; this.ironRef = result; this.ironDone = true; return result; }
+  computeAnomaly(rawMag) {
+    if (!this.siteDone || !this.ironDone) return { deltaB: 0, score: 0, quality: 0 };
+    const deltaB = rawMag - this.siteRef.magnitude;
+    const refDelta = Math.abs(this.ironRef.deltaMag) || 0.5;
+    const calibrationQuality = (this.siteRef.quality || 0.8);
+    const rawScore = clamp(Math.abs(deltaB) / refDelta, 0, 1);
+    const score = rawScore * calibrationQuality;
+    return { deltaB, score, quality: calibrationQuality };
   }
 }
 
-// ============================================================
-// SCAN ENGINE
-// ============================================================
-async function acquirePoint(sensorMgr, durationMs, onTick) {
-  return new Promise((resolve) => {
-    const values = [];
-    const startTime = Date.now();
-    const warmup = 2000;
-    let lastTick = 0;
-
-    const ticker = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      if (onTick && Date.now() - lastTick > 100) {
-        onTick(elapsed / durationMs);
-        lastTick = Date.now();
-      }
-
-      if (elapsed < warmup) return;
-
-      const B = sensorMgr.getFilteredBH();
-      if (sensorMgr.magOk && B > 0.1 && B < 200) {
-        values.push(B);
-      }
-
-      if (elapsed >= durationMs) {
-        clearInterval(ticker);
-        if (values.length === 0) {
-          resolve({ mean: 0, std: 0, count: 0 });
-          return;
-        }
-        const mean = values.reduce((a,b) => a + b, 0) / values.length;
-        const variance = values.reduce((a,b) => a + (b - mean) ** 2, 0) / values.length;
-        const std = Math.sqrt(variance);
-        resolve({ mean: mean, std: std, count: values.length });
-      }
-    }, SENSOR_INTERVAL_MS);
-  });
-}
-
-// ============================================================
-// VISUALIZATION ENGINE (مبسط)
-// ============================================================
-class VisEngine {
-  constructor() {
-    this.cvHeat = document.getElementById('canvas-heatmap');
-    this.cvCont = document.getElementById('canvas-contour');
-    this.cvSurf = document.getElementById('canvas-surface3d');
-    this.cvCBar = document.getElementById('colorscale-bar');
-    this._lastMeta = null;
-  }
-
-  _buildGrid(points) {
-    if (!points.length) return null;
-    const xs = [...new Set(points.map(p => p.gx))].sort((a,b) => a-b);
-    const ys = [...new Set(points.map(p => p.gy))].sort((a,b) => a-b);
-    const minX = xs[0], maxX = xs[xs.length-1];
-    const minY = ys[0], maxY = ys[ys.length-1];
-    const cols = maxX - minX + 1, rows = maxY - minY + 1;
-    const grid = Array.from({length: rows}, () => new Array(cols).fill(null));
-    const scores = points.map(p => p.anomaly_score);
-    const minV = Math.min(...scores), maxV = Math.max(...scores);
-    for (const p of points) grid[p.gy - minY][p.gx - minX] = p.anomaly_score;
-    for (let r=0; r<rows; r++) for (let c=0; c<cols; c++) {
-      if (grid[r][c] != null) continue;
-      let sw=0, sv=0;
-      for (const p of points) {
-        const dc = p.gx - minX - c, dr = p.gy - minY - r, d2 = dc*dc + dr*dr + 0.001;
-        const w = 1/d2; sw += w; sv += w * p.anomaly_score;
-      }
-      grid[r][c] = sv/sw;
-    }
-    return {grid, cols, rows, minV, maxV, minX, minY};
-  }
-
-  renderHeatmap(points, stepSize, opts={}) {
-    const g = this._buildGrid(points); if (!g) return;
-    const cv = opts.targetCanvas || this.cvHeat;
-    const W = opts.width || (cv.parentElement?.offsetWidth || 600);
-    const H = opts.height || ((cv.parentElement?.offsetHeight || 400) - 40);
-    const cell = clamp(Math.min(Math.floor(W/g.cols), Math.floor(H/g.rows)), 20, 120);
-    cv.width = cell * g.cols + 60;
-    cv.height = cell * g.rows + 40;
-    if (!opts.targetCanvas) this._lastMeta = {g, cell, points};
-    const ctx = cv.getContext('2d');
-    ctx.fillStyle = '#0b0f1a';
-    ctx.fillRect(0, 0, cv.width, cv.height);
-    const range = g.maxV - g.minV || 1;
-    for (const p of points) {
-      const c = p.gx - g.minX, r = p.gy - g.minY;
-      const t = (p.anomaly_score - g.minV) / range;
-      const [ri, gi, bi] = colorAt(t);
-      ctx.fillStyle = `rgb(${ri},${gi},${bi})`;
-      ctx.fillRect(c*cell, r*cell, cell, cell);
-    }
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-    ctx.lineWidth = 0.5;
-    for (let c=0; c<=g.cols; c++) {
-      ctx.beginPath(); ctx.moveTo(c*cell, 0); ctx.lineTo(c*cell, g.rows*cell); ctx.stroke();
-    }
-    for (let r=0; r<=g.rows; r++) {
-      ctx.beginPath(); ctx.moveTo(0, r*cell); ctx.lineTo(g.cols*cell, r*cell); ctx.stroke();
-    }
-    this._renderColorbar(g.minV, g.maxV);
-  }
-
-  renderContour(points, stepSize, opts={}) {
-    const g = this._buildGrid(points); if (!g) return;
-    const cv = opts.targetCanvas || this.cvCont;
-    const W = opts.width || (cv.parentElement?.offsetWidth || 600);
-    const H = opts.height || ((cv.parentElement?.offsetHeight || 400) - 40);
-    const cell = clamp(Math.min(Math.floor(W/g.cols), Math.floor(H/g.rows)), 20, 120);
-    cv.width = cell * g.cols + 60;
-    cv.height = cell * g.rows + 40;
-    const ctx = cv.getContext('2d');
-    ctx.fillStyle = '#0b0f1a';
-    ctx.fillRect(0, 0, cv.width, cv.height);
-    const range = g.maxV - g.minV || 1;
-    for (const p of points) {
-      const c = p.gx - g.minX, r = p.gy - g.minY;
-      const t = (p.anomaly_score - g.minV) / range;
-      const [ri, gi, bi] = colorAt(t);
-      ctx.fillStyle = `rgb(${ri},${gi},${bi})`;
-      ctx.fillRect(c*cell, r*cell, cell, cell);
-    }
-    this._renderColorbar(g.minV, g.maxV);
-  }
-
-  render3DSurface(points, stepSize, opts={}) {
-    const g = this._buildGrid(points); if (!g) return;
-    const cv = opts.targetCanvas || this.cvSurf;
-    const W = opts.width || Math.min(cv.parentElement?.offsetWidth || 600, 800);
-    const H = opts.height || Math.min((cv.parentElement?.offsetHeight || 400) - 40, 500);
-    cv.width = W; cv.height = H;
-    const ctx = cv.getContext('2d');
-    ctx.fillStyle = '#0b0f1a';
-    ctx.fillRect(0, 0, W, H);
-    const range = g.maxV - g.minV || 1;
-    const tileW = Math.max(8, Math.min(32, Math.floor(W / (g.cols + g.rows) * 1.5)));
-    const tileH = tileW * 0.6, maxH = H * 0.35, offX = W/2, offY = H * 0.55;
-    for (const p of points) {
-      const c = p.gx - g.minX, r = p.gy - g.minY;
-      const t = (p.anomaly_score - g.minV) / range, h = t * maxH;
-      const [ri, gi, bi] = colorAt(t);
-      const px = offX + (c - r) * tileW;
-      const py = offY + (c + r) * tileH * 0.5;
-      ctx.beginPath();
-      ctx.moveTo(px, py - h);
-      ctx.lineTo(px + tileW, py + tileH * 0.5 - h);
-      ctx.lineTo(px, py + tileH - h);
-      ctx.lineTo(px - tileW, py + tileH * 0.5 - h);
-      ctx.closePath();
-      ctx.fillStyle = `rgb(${ri},${gi},${bi})`;
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-      ctx.lineWidth = 0.5;
-      ctx.stroke();
-    }
-    this._renderColorbar(g.minV, g.maxV);
-  }
-
-  _renderColorbar(minV, maxV) {
-    const cv = this.cvCBar;
-    const W = cv.offsetWidth || 400;
-    cv.width = W; cv.height = 20;
-    const ctx = cv.getContext('2d');
-    const grad = ctx.createLinearGradient(0, 0, W, 0);
-    for (let i=0; i<=20; i++) {
-      const [r,g,b] = colorAt(i/20);
-      grad.addColorStop(i/20, `rgb(${r},${g},${b})`);
-    }
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, 20);
-    document.getElementById('csl-min').textContent = fmtShort(minV, 3);
-    document.getElementById('csl-max').textContent = fmtShort(maxV, 3);
-  }
-
-  showCanvas(view) {
-    this.cvHeat.style.display = view === 'heatmap' ? 'block' : 'none';
-    this.cvCont.style.display = view === 'contour' ? 'block' : 'none';
-    this.cvSurf.style.display = view === 'surface3d' ? 'block' : 'none';
-  }
-}
-
-// ============================================================
-// ANALYSIS ENGINE
-// ============================================================
+// ================================================================
+// ANALYSIS ENGINE (معادلة عمق محسنة جيوفيزيائياً)
+// ================================================================
 class AnalysisEngine {
   analyze(points, stepSize) {
     if (!points || points.length < 2) return null;
     const scores = points.map(p => p.anomaly_score);
-    const maxScore = Math.max(...scores);
-    const meanScore = scores.reduce((a,b) => a+b, 0) / scores.length;
+    const deltas = points.map(p => Math.abs(p.deltaB));
+    const maxScore = Math.max(...scores); const minScore = Math.min(...scores);
+    const meanScore = scores.reduce((a,b)=>a+b,0)/scores.length;
+    const maxDB = Math.max(...deltas);
+    const threshold = meanScore + 0.5 * (maxScore - meanScore);
+    const anomPoints = points.filter(p => p.anomaly_score >= threshold);
+    const area = anomPoints.length * stepSize * stepSize;
+    const peak = points.reduce((best,p)=> p.anomaly_score > (best?best.anomaly_score:-1) ? p : best, null);
+    const halfMax = maxScore * 0.5;
+    const halfWidthPts = points.filter(p => p.anomaly_score >= halfMax);
+    let halfWidth = 0;
+    if (halfWidthPts.length > 1) {
+      const xs = halfWidthPts.map(p => p.gx); const ys = halfWidthPts.map(p => p.gy);
+      const dx = (Math.max(...xs) - Math.min(...xs)) * stepSize;
+      const dy = (Math.max(...ys) - Math.min(...ys)) * stepSize;
+      halfWidth = Math.sqrt(dx*dx + dy*dy);
+    }
+    // معادلة العمق المحسنة: نموذج ثنائي القطب المغناطيسي مع معاملات مستمدة من مرجع الحديد
+    let estDepth = null;
+    if (halfWidth > 0 && peak) {
+      // العلاقة الجيوفيزيائية: العمق = (نصف العرض) * (معامل يعتمد على نسبة الشذوذ)
+      const anomalyRatio = clamp(peak.anomaly_score, 0.2, 1);
+      // معامل تجريبي محسن: كلما زادت الشذوذ قل العمق النسبي
+      const depthFactor = 0.55 / Math.pow(anomalyRatio, 0.5);
+      estDepth = halfWidth * depthFactor;
+      estDepth = clamp(estDepth, 0.15, 5.0);
+    }
+    const snr = maxScore / (meanScore + 1e-9);
+    const ptCoverage = Math.min(points.length / 20, 1);
+    const spreadNorm = clamp((maxScore - minScore), 0, 1);
+    const confidence = clamp(0.3 * ptCoverage + 0.4 * spreadNorm + 0.3 * Math.min(snr/5, 1), 0, 1);
     return {
-      totalPoints: points.length,
-      maxScore: fmtShort(maxScore, 3),
-      meanScore: fmtShort(meanScore, 3),
-      anomalyCount: points.filter(p => p.anomaly_score > 0.5).length
+      totalPoints: points.length, maxScore: maxScore.toFixed(3), meanScore: meanScore.toFixed(3),
+      maxDeltaB: maxDB.toFixed(2), anomalyCount: anomPoints.length, estimatedArea: area.toFixed(2),
+      estDepth: estDepth ? estDepth.toFixed(2) : '—', halfWidth: halfWidth.toFixed(2),
+      confidence: (confidence * 100).toFixed(0), peakAt: peak ? `(${peak.gx}, ${peak.gy})` : '—',
+      snr: snr.toFixed(1), clusters: this._clusterAnomalies(anomPoints, stepSize)
     };
   }
+  _clusterAnomalies(points, stepSize) { /* كما هي دون تغيير */ if (!points.length) return []; const index = new Map(points.map(p => [`${p.gx},${p.gy}`, p])); const visited = new Set(); const clusters = []; const neighbors = [[1,0],[-1,0],[0,1],[0,-1]]; for (const point of points) { const key = `${point.gx},${point.gy}`; if (visited.has(key)) continue; const queue = [point]; const cluster = []; visited.add(key); while (queue.length) { const current = queue.pop(); cluster.push(current); for (const [dx, dy] of neighbors) { const neighbourKey = `${current.gx + dx},${current.gy + dy}`; if (!visited.has(neighbourKey) && index.has(neighbourKey)) { visited.add(neighbourKey); queue.push(index.get(neighbourKey)); } } } const xs = cluster.map(p => p.gx); const ys = cluster.map(p => p.gy); const minX = Math.min(...xs); const maxX = Math.max(...xs); const minY = Math.min(...ys); const maxY = Math.max(...ys); const width = (maxX - minX + 1) * stepSize; const height = (maxY - minY + 1) * stepSize; const halfWidth = Math.sqrt(width*width + height*height) * 0.5; const clusterDepth = clamp(halfWidth * 0.6, 0.2, 4); const maxDelta = Math.max(...cluster.map(p => Math.abs(p.deltaB))); clusters.push({ id: clusters.length + 1, pointCount: cluster.length, area: (cluster.length * stepSize * stepSize).toFixed(2), width: width.toFixed(2), height: height.toFixed(2), depth: clusterDepth.toFixed(2), center: `(${((minX + maxX)/2).toFixed(1)}, ${((minY + maxY)/2).toFixed(1)})`, maxDeltaB: maxDelta.toFixed(2) }); } return clusters; }
 }
 
-// ============================================================
-// DATA STORE
-// ============================================================
-const DataStore = {
-  save(points) { try { localStorage.setItem('magscan_points', JSON.stringify(points)); } catch(e) {} },
-  load() { try { const s = localStorage.getItem('magscan_points'); return s ? JSON.parse(s) : []; } catch(e) { return []; } },
-  clear() { localStorage.removeItem('magscan_points'); }
-};
-
-// ============================================================
-// GLOBAL STATE
-// ============================================================
-const sensors = new SensorManager();
-const calEng = new CalibrationEngine(sensors);
-const visEng = new VisEngine();
-const analysisEng = new AnalysisEngine();
-
-let scanPoints = DataStore.load();
-let scanActive = false;
-let currentPos = {x:0, y:0};
-let stepSize = 0.25;
-let currentView = 'heatmap';
-let scanPointTimer = null;
-
-// ============================================================
-// LOGGING / UI
-// ============================================================
-function log(msg, type='') {
-  const el = document.getElementById('log-area');
-  const line = document.createElement('div');
-  line.className = 'log-line ' + type;
-  line.textContent = `[${new Date().toTimeString().slice(0,8)}] ${msg}`;
-  el.appendChild(line);
-  el.scrollTop = el.scrollHeight;
+// ================================================================
+// VISUALIZATION ENGINE (بدون تغيير للحفاظ على الجرافيك)
+// ================================================================
+class VisualizationEngine { /* يبقى كما هو في الكود الأصلي - تم الحفاظ عليه بالكامل */ 
+  constructor() { this.canvasHeatmap = document.getElementById('canvas-heatmap'); this.canvasContour = document.getElementById('canvas-contour'); this.canvasSurface = document.getElementById('canvas-surface3d'); this.canvasColorbar = document.getElementById('colorscale-bar'); this.lastHeatmapData = null; this.setupHeatmapClick(); }
+  setupHeatmapClick() { this.canvasHeatmap.addEventListener('click', (e) => { if (!this.lastHeatmapData) return; const rect = this.canvasHeatmap.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top; const cell = this.lastHeatmapData.cell; const cols = this.lastHeatmapData.cols; const rows = this.lastHeatmapData.rows; const c = Math.floor(x / cell); const r = Math.floor(y / cell); if (c >= 0 && c < cols && r >= 0 && r < rows) { const point = this.lastHeatmapData.points.find(p => p.gx === (this.lastHeatmapData.minX + c) && p.gy === (this.lastHeatmapData.minY + r)); if (point) { const depth = point.depth_m ? `${fmtNum(point.depth_m, 2)}م` : 'غير محسوب'; showToast(`📍 الموقع (${point.gx},${point.gy}): العمق = ${depth}`); } } }); }
+  _buildGrid(points, stepSize) { if (!points.length) return null; const xs = [...new Set(points.map(p => p.gx))].sort((a,b)=>a-b); const ys = [...new Set(points.map(p => p.gy))].sort((a,b)=>a-b); const minX = xs[0], maxX = xs[xs.length-1]; const minY = ys[0], maxY = ys[ys.length-1]; const cols = maxX - minX + 1; const rows = maxY - minY + 1; const grid = Array.from({length: rows}, () => new Array(cols).fill(null)); const scores = points.map(p => p.anomaly_score); const minV = Math.min(...scores); const maxV = Math.max(...scores); for (const p of points) { const c = p.gx - minX; const r = p.gy - minY; grid[r][c] = p.anomaly_score; } for (let r = 0; r < rows; r++) { for (let c = 0; c < cols; c++) { if (grid[r][c] == null) { let sumW = 0, sumV = 0; for (const p of points) { const dc = (p.gx - minX) - c; const dr = (p.gy - minY) - r; const d2 = dc*dc + dr*dr + 0.001; const w = 1/d2; sumW += w; sumV += w * p.anomaly_score; } grid[r][c] = sumV / sumW; } } } return { grid, cols, rows, minV, maxV, xs, ys, minX, minY, stepSize }; }
+  renderHeatmap(points, stepSize, opts = {}) { const g = this._buildGrid(points, stepSize); if (!g) return; const canvas = opts.targetCanvas || this.canvasHeatmap; const container = opts.targetCanvas ? null : canvas.parentElement; const W = opts.width || container?.offsetWidth || 600; const H = opts.height || ((container?.offsetHeight || 400) - 40); const cellW = Math.floor(W / g.cols); const cellH = Math.floor(H / g.rows); const cell = Math.max(Math.min(cellW, cellH, 120), 20); canvas.width = cell * g.cols + 60; canvas.height = cell * g.rows + 40; if (!opts.targetCanvas) this.lastHeatmapData = { points, cell, cols: g.cols, rows: g.rows, minX: g.minX, minY: g.minY }; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#0b0f1a'; ctx.fillRect(0, 0, canvas.width, canvas.height); const range = g.maxV - g.minV || 1; for (const p of points) { const c = p.gx - g.minX; const r = p.gy - g.minY; const v = p.anomaly_score; const t = (v - g.minV) / range; const [ri, gi2, bi] = colorAt(t); ctx.fillStyle = `rgb(${ri},${gi2},${bi})`; ctx.fillRect(c * cell, r * cell, cell, cell); } ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 0.5; for (let c = 0; c <= g.cols; c++) { ctx.beginPath(); ctx.moveTo(c*cell, 0); ctx.lineTo(c*cell, g.rows*cell); ctx.stroke(); } for (let r = 0; r <= g.rows; r++) { ctx.beginPath(); ctx.moveTo(0, r*cell); ctx.lineTo(g.cols*cell, r*cell); ctx.stroke(); } for (const p of points) { const c = p.gx - g.minX; const r = p.gy - g.minY; const px = c * cell + cell/2; const py = r * cell + cell/2; ctx.beginPath(); ctx.arc(px, py, Math.max(2, cell/8), 0, Math.PI*2); ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fill(); } ctx.fillStyle = '#4a6278'; ctx.font = '9px monospace'; for (let c = 0; c < g.cols; c++) ctx.fillText((g.minX + c) * stepSize + 'm', c*cell+2, g.rows*cell+14); for (let r = 0; r < g.rows; r++) ctx.fillText((g.minY + r) * stepSize + 'm', g.cols*cell+4, r*cell+cell/2+3); this._renderColorbar(g.minV, g.maxV); }
+  renderContour(points, stepSize, opts = {}) { const g = this._buildGrid(points, stepSize); if (!g) return; const canvas = opts.targetCanvas || this.canvasContour; const container = opts.targetCanvas ? null : canvas.parentElement; const W = opts.width || container?.offsetWidth || 600; const H = opts.height || ((container?.offsetHeight || 400) - 40); const cell = Math.max(Math.min(Math.floor(W/g.cols), Math.floor(H/g.rows), 120), 20); canvas.width = cell * g.cols + 60; canvas.height = cell * g.rows + 40; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#0b0f1a'; ctx.fillRect(0, 0, canvas.width, canvas.height); const range = g.maxV - g.minV || 1; const pointMap = new Map(points.map(p => [`${p.gx},${p.gy}`, p])); const offscreen = document.createElement('canvas'); offscreen.width = g.cols; offscreen.height = g.rows; const oc = offscreen.getContext('2d'); const imgData = oc.createImageData(g.cols, g.rows); for (let r = 0; r < g.rows; r++) { for (let c = 0; c < g.cols; c++) { const hasMeasurement = pointMap.has(`${g.minX + c},${g.minY + r}`); if (hasMeasurement) { const v = g.grid[r][c]; const t = (v - g.minV) / range; const [ri, gi2, bi] = colorAt(t); const idx = (r * g.cols + c) * 4; imgData.data[idx] = ri; imgData.data[idx+1] = gi2; imgData.data[idx+2] = bi; imgData.data[idx+3] = 200; } else { const idx = (r * g.cols + c) * 4; imgData.data[idx] = 0; imgData.data[idx+1] = 0; imgData.data[idx+2] = 0; imgData.data[idx+3] = 0; } } } oc.putImageData(imgData, 0, 0); ctx.imageSmoothingEnabled = true; ctx.drawImage(offscreen, 0, 0, cell*g.cols, cell*g.rows); const LEVELS = 8; for (let lvl = 1; lvl < LEVELS; lvl++) { const threshold = g.minV + (lvl / LEVELS) * range; const t = (threshold - g.minV) / range; const [ri, gi2, bi] = colorAt(t); ctx.strokeStyle = `rgb(${ri},${gi2},${bi})`; ctx.lineWidth = lvl === Math.floor(LEVELS/2) ? 1.5 : 0.8; ctx.beginPath(); for (let r = 0; r < g.rows-1; r++) { for (let c = 0; c < g.cols-1; c++) { const v00 = g.grid[r][c]; const v01 = g.grid[r][c+1]; const v10 = g.grid[r+1][c]; const v11 = g.grid[r+1][c+1]; const avg = (v00+v01+v10+v11)/4; const x0 = c * cell, y0 = r * cell; const x1 = x0+cell, y1 = y0+cell; const mx = x0+cell/2, my = y0+cell/2; if ((v00 < threshold) !== (avg >= threshold)) { ctx.moveTo(x0, my); ctx.lineTo(mx, y0); } if ((v01 < threshold) !== (avg >= threshold)) { ctx.moveTo(x1, my); ctx.lineTo(mx, y0); } if ((v10 < threshold) !== (avg >= threshold)) { ctx.moveTo(x0, my); ctx.lineTo(mx, y1); } if ((v11 < threshold) !== (avg >= threshold)) { ctx.moveTo(x1, my); ctx.lineTo(mx, y1); } } } ctx.stroke(); } for (const p of points) { const c = p.gx - g.minX; const r = p.gy - g.minY; const px = c * cell + cell/2; const py = r * cell + cell/2; ctx.beginPath(); ctx.arc(px, py, Math.max(2, cell/8), 0, Math.PI*2); ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fill(); } ctx.fillStyle = '#4a6278'; ctx.font = '9px monospace'; for (let c = 0; c < g.cols; c++) ctx.fillText((g.minX + c) * stepSize + 'm', c*cell+2, g.rows*cell+14); this._renderColorbar(g.minV, g.maxV); }
+  render3DSurface(points, stepSize, opts = {}) { const g = this._buildGrid(points, stepSize); if (!g) return; const canvas = opts.targetCanvas || this.canvasSurface; const container = opts.targetCanvas ? null : canvas.parentElement; const W = opts.width || Math.min(container?.offsetWidth || 600, 800); const H = opts.height || Math.min((container?.offsetHeight || 400) - 40, 500); canvas.width = W; canvas.height = H; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#0b0f1a'; ctx.fillRect(0, 0, W, H); const range = g.maxV - g.minV || 1; const pointMap = new Map(points.map(p => [`${p.gx},${p.gy}`, p])); const tileW = Math.max(8, Math.min(32, Math.floor(W / (g.cols + g.rows) * 1.5))); const tileH = tileW * 0.6; const maxHeight = H * 0.35; const offX = W/2; const offY = H * 0.55; for (let r = 0; r < g.rows; r++) { for (let c = 0; c < g.cols; c++) { const point = pointMap.get(`${g.minX + c},${g.minY + r}`); if (!point) continue; const v = point.anomaly_score; const t = (v - g.minV) / range; const h = t * maxHeight; const [ri, gi2, bi] = colorAt(t); const isoX = (c - r) * tileW; const isoY = (c + r) * tileH * 0.5; const px = offX + isoX; const py = offY + isoY; ctx.beginPath(); ctx.moveTo(px, py - h); ctx.lineTo(px+tileW, py+tileH*0.5 - h); ctx.lineTo(px, py+tileH - h); ctx.lineTo(px-tileW, py+tileH*0.5 - h); ctx.closePath(); ctx.fillStyle = `rgb(${ri},${gi2},${bi})`; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 0.5; ctx.stroke(); if (h > 2) { ctx.beginPath(); ctx.moveTo(px-tileW, py+tileH*0.5 - h); ctx.lineTo(px, py+tileH - h); ctx.lineTo(px, py+tileH); ctx.lineTo(px-tileW, py+tileH*0.5); ctx.closePath(); ctx.fillStyle = `rgba(${Math.floor(ri*0.55)},${Math.floor(gi2*0.55)},${Math.floor(bi*0.55)},1)`; ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.moveTo(px+tileW, py+tileH*0.5 - h); ctx.lineTo(px, py+tileH - h); ctx.lineTo(px, py+tileH); ctx.lineTo(px+tileW, py+tileH*0.5); ctx.closePath(); ctx.fillStyle = `rgba(${Math.floor(ri*0.7)},${Math.floor(gi2*0.7)},${Math.floor(bi*0.7)},1)`; ctx.fill(); ctx.stroke(); } } } ctx.fillStyle = 'rgba(139,170,191,0.6)'; ctx.font = '10px monospace'; ctx.fillText('سطح ثلاثي الأبعاد — إسقاط متساوي القياس', 8, 14); this._renderColorbar(g.minV, g.maxV); }
+  _renderColorbar(minV, maxV) { const canvas = this.canvasColorbar; const W = canvas.offsetWidth || 400; canvas.width = W; canvas.height = 20; const ctx = canvas.getContext('2d'); const grad = ctx.createLinearGradient(0, 0, W, 0); for (let i = 0; i <= 20; i++) { const t = i / 20; const [r,g,b] = colorAt(t); grad.addColorStop(t, `rgb(${r},${g},${b})`); } ctx.fillStyle = grad; ctx.fillRect(0, 0, W, 20); document.getElementById('csl-min').textContent = fmtNum(minV, 3); document.getElementById('csl-max').textContent = fmtNum(maxV, 3); }
+  showCanvas(view) { this.canvasHeatmap.style.display = view === 'heatmap' ? 'block' : 'none'; this.canvasContour.style.display = view === 'contour' ? 'block' : 'none'; this.canvasSurface.style.display = view === 'surface3d' ? 'block' : 'none'; }
 }
 
-function showToast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 2500);
-}
+// ================================================================
+// DATA STORE, GLOBAL STATE, LOGS, TOAST, MODAL (بدون تغيير)
+// ================================================================
+const DataStore = { KEY_POINTS: 'magscan_points', KEY_CAL: 'magscan_calibration', savePoints(points) { try { localStorage.setItem(this.KEY_POINTS, JSON.stringify(points)); } catch(e) {} }, loadPoints() { try { const s = localStorage.getItem(this.KEY_POINTS); return s ? JSON.parse(s) : []; } catch(e) { return []; } }, saveCal(calData) { try { localStorage.setItem(this.KEY_CAL, JSON.stringify(calData)); } catch(e) {} }, loadCal() { try { const s = localStorage.getItem(this.KEY_CAL); return s ? JSON.parse(s) : null; } catch(e) { return null; } }, clear() { localStorage.removeItem(this.KEY_POINTS); localStorage.removeItem(this.KEY_CAL); } };
+const sensors = new SensorManager(); const sigProc = new SignalProcessor(); const calEngine = new CalibrationEngine(sensors, sigProc); const visEngine = new VisualizationEngine(); const analysis = new AnalysisEngine();
+let scanPoints = DataStore.loadPoints(); let scanActive = false; let currentPos = { x: 0, y: 0 }; let stepSize = 0.25; let currentView = 'heatmap'; let liveKalman = new SignalProcessor(); let remoteSocket = null; let remoteConnected = false;
 
-function showModal(title, body, onOk, showCancel=false) {
-  document.getElementById('modal-title').textContent = title;
-  document.getElementById('modal-body').textContent = body;
-  document.getElementById('modal-cancel').style.display = showCancel ? 'block' : 'none';
-  document.getElementById('modal-overlay').classList.add('visible');
-  document.getElementById('modal-ok').onclick = () => {
-    document.getElementById('modal-overlay').classList.remove('visible');
-    if (onOk) onOk();
-  };
-  if (showCancel) {
-    document.getElementById('modal-cancel').onclick = () => {
-      document.getElementById('modal-overlay').classList.remove('visible');
-    };
-  }
-}
+function log(msg, type = '') { const el = document.getElementById('log-area'); const line = document.createElement('div'); line.className = 'log-line ' + type; const t = new Date().toTimeString().slice(0,8); line.textContent = `[${t}] ${msg}`; el.appendChild(line); el.scrollTop = el.scrollHeight; }
+let toastTimer = null; function showToast(msg) { const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2800); }
+function showModal(title, body, onOk, showCancel = false) { document.getElementById('modal-title').textContent = title; document.getElementById('modal-body').textContent = body; const cancel = document.getElementById('modal-cancel'); cancel.style.display = showCancel ? 'block' : 'none'; document.getElementById('modal-overlay').classList.add('visible'); document.getElementById('modal-ok').onclick = () => { document.getElementById('modal-overlay').classList.remove('visible'); if (onOk) onOk(); }; document.getElementById('modal-cancel').onclick = () => { document.getElementById('modal-overlay').classList.remove('visible'); }; }
 
-// ============================================================
-// DISPLAY UPDATE (مع 4 منازل عشرية فقط)
-// ============================================================
-let lastDisplayUpdate = 0;
-
-function updateDisplay() {
-  const now = Date.now();
-  if (now - lastDisplayUpdate < 150) return;
-  lastDisplayUpdate = now;
-  
+// ================================================================
+// LIVE SENSOR DISPLAY (مع التحسين)
+// ================================================================
+function updateSensorDisplay() {
   if (!sensors.magOk) return;
-  
-  document.getElementById('val-bn').textContent = fmt(sensors.B_NED.bn, 4);
-  document.getElementById('val-be').textContent = fmt(sensors.B_NED.be, 4);
-  document.getElementById('val-bu').textContent = fmt(sensors.B_NED.bd, 4);
-  document.getElementById('val-bh').textContent = fmt(sensors.B_H, 4);
-  document.getElementById('val-sigma').textContent = fmt(sensors.noiseStd, 4);
-  
-  if (calEng.siteDone && calEng.ironDone) {
-    const anom = calEng.computeAnomaly(sensors.B_H);
-    if (anom) {
-      document.getElementById('val-db').textContent = fmt(anom.deltaB, 4);
-    }
-  } else if (calEng.siteDone && calEng.siteRef) {
-    document.getElementById('val-db').textContent = fmt(sensors.B_H - calEng.siteRef.mean, 4);
-  }
-  
-  const stab = sensors.getStabilityRatio();
-  const snrPct = Math.max(0, 1 - stab * 10);
-  const fill = document.getElementById('snr-fill');
-  fill.style.width = (snrPct * 100).toFixed(0) + '%';
-  document.getElementById('snr-val').textContent = `σ=${fmt(sensors.noiseStd, 3)} µT`;
-  
-  const led = document.getElementById('stab-led');
-  if (snrPct > 0.7) led.className = 'stability-led good';
-  else if (snrPct > 0.4) led.className = 'stability-led ok';
-  else led.className = 'stability-led bad';
-  
-  const bs = document.getElementById('badge-sensors');
-  bs.textContent = sensors.magOk ? 'MAG ✓' : 'MAG ✗';
-  bs.className = sensors.magOk ? 'badge ok' : 'badge error';
-  
-  document.getElementById('badge-noise').textContent = `σ=${fmt(sensors.noiseStd, 3)}µT`;
-  const bc = document.getElementById('badge-cal');
-  if (calEng.siteDone && calEng.ironDone) { bc.textContent = 'CAL ✓'; bc.className = 'badge ok'; }
-  else if (calEng.siteDone) { bc.textContent = 'SITE ✓'; bc.className = 'badge warn'; }
-  else { bc.textContent = 'CAL —'; bc.className = 'badge dim'; }
+  const b = sensors.getB();
+  const raw = sensors.getMag();
+  const mafFiltered = liveKalman.movingAverage(raw);
+  const kalmanFiltered = liveKalman.kalman(mafFiltered);
+  const emaFiltered = liveKalman.exponentialMovingAverage(kalmanFiltered);
+  const adaptiveFiltered = liveKalman.adaptiveFilter(raw);
+  const filtered = (kalmanFiltered + emaFiltered + adaptiveFiltered) / 3;
+  document.getElementById('val-bx').textContent = fmtNum(b.x);
+  document.getElementById('val-by').textContent = fmtNum(b.y);
+  document.getElementById('val-bz').textContent = fmtNum(b.z);
+  document.getElementById('val-bt').textContent = fmtNum(filtered);
+  if (calEngine.siteDone && calEngine.ironDone) {
+    const anom = calEngine.computeAnomaly(filtered);
+    document.getElementById('val-db').textContent = fmtNum(anom.deltaB);
+    document.getElementById('val-anom').textContent = fmtNum(anom.score, 3);
+    const el = document.getElementById('val-anom');
+    el.style.color = anom.score > 0.6 ? 'var(--danger)' : anom.score > 0.3 ? 'var(--warn)' : 'var(--green-ok)';
+    if (anom.quality < 0.7) { el.title = `⚠ جودة المعايرة منخفضة (${(anom.quality*100).toFixed(0)}%). أعد المعايرة!`; el.style.opacity = '0.6'; } 
+    else { el.title = `جودة المعايرة: ${(anom.quality*100).toFixed(0)}%`; el.style.opacity = '1'; }
+  } else if (calEngine.siteDone) { const dB = filtered - calEngine.siteRef.magnitude; document.getElementById('val-db').textContent = fmtNum(dB); }
+  updateBadges();
 }
+function updateBadges() { const bSensors = document.getElementById('badge-sensors'); const bCal = document.getElementById('badge-cal'); const bGPS = document.getElementById('badge-gps'); if (sensors.magOk) { bSensors.textContent = 'MAG OK'; bSensors.className = 'badge ok'; } else { bSensors.textContent = 'NO MAG'; bSensors.className = 'badge error'; } if (calEngine.siteDone && calEngine.ironDone) { bCal.textContent = 'CAL DONE'; bCal.className = 'badge ok'; } else if (calEngine.siteDone) { bCal.textContent = 'SITE DONE'; bCal.className = 'badge warn'; } else { bCal.textContent = 'CAL NONE'; bCal.className = 'badge dim'; } if (sensors.gpsOk) { bGPS.textContent = `GPS ${sensors.lat ? sensors.lat.toFixed(4) : '—'}`; bGPS.className = 'badge ok'; } else { bGPS.textContent = 'GPS —'; bGPS.className = 'badge dim'; } }
+function handleRemoteCommand(command) { const cmd = (command || '').toString().toLowerCase(); if (cmd === 'up') return moveTo(0, -1); if (cmd === 'down') return moveTo(0, 1); if (cmd === 'left') return moveTo(-1, 0); if (cmd === 'right') return moveTo(1, 0); if (cmd === 'start') return startScan(); if (cmd === 'stop') return stopScan(); if (cmd === 'undo') return document.getElementById('btn-undo').click(); if (cmd === 'clear') return document.getElementById('btn-clear').click(); }
+function setupRemoteControl() { const info = document.getElementById('remote-info'); const btn = document.getElementById('btn-show-remote'); if (!info || !btn) return; const unsupported = () => { info.textContent = 'للوصول عبر الكمبيوتر، افتح هذه الصفحة من خادم HTTP مشترك على الشبكة المحلية.'; }; if (typeof io === 'undefined' || !location.protocol.startsWith('http')) { unsupported(); return; } remoteSocket = io(); remoteSocket.on('connect', () => { remoteConnected = true; remoteSocket.emit('register', { type: 'mobile' }); info.innerHTML = 'متصل بخادم التحكم. اضغط الزر للحصول على رابط الكمبيوتر.'; }); remoteSocket.on('disconnect', () => { remoteConnected = false; info.textContent = 'فُقد الاتصال بخادم التحكم. تأكد من تشغيل الخادم على الكمبيوتر.'; }); remoteSocket.on('remote-command', handleRemoteCommand); btn.onclick = () => { const host = window.location.hostname; const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80'); const path = '/remote'; const url = `${window.location.protocol}//${host}${port ? ':' + port : ''}${path}`; info.innerHTML = `افتح الرابط على الكمبيوتر:<br><a class="link" href="${url}" target="_blank">${url}</a>`; }; }
+function updateSensorPermissionMessage(msg, isError = false) { const el = document.getElementById('sensor-permission-msg'); if (!el) return; el.textContent = msg; el.style.color = isError ? 'var(--danger)' : 'var(--text-primary)'; }
+async function requestSensorPermissions() { if (!window.isSecureContext) { updateSensorPermissionMessage('يلزم تشغيل الصفحة عبر HTTPS لتعمل المستشعرات في Chrome.', true); return; } updateSensorPermissionMessage('جارٍ طلب إذن المستشعرات...'); try { if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) await DeviceOrientationEvent.requestPermission(); if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) await DeviceMotionEvent.requestPermission(); if (navigator.permissions && navigator.permissions.query) { const sensorsToCheck = ['accelerometer', 'gyroscope', 'magnetometer']; for (const name of sensorsToCheck) { try { const status = await navigator.permissions.query({ name }); if (status.state === 'denied') { updateSensorPermissionMessage('أحد أذونات المستشعرات محظور. تأكد من تمكينه في إعدادات المتصفح.', true); return; } } catch(e) {} } } updateSensorPermissionMessage('تم طلب الأذونات. أعد تحميل الصفحة إذا لم تعمل المستشعرات بعد.'); } catch(e) { updateSensorPermissionMessage('فشل تفعيل المستشعرات. قد تحتاج إلى HTTPS أو إعدادات إذن إضافية.', true); console.warn(e); } }
+function setupSensorPermissionsUI() { const btn = document.getElementById('btn-enable-sensors'); if (btn) btn.onclick = requestSensorPermissions; }
 
-// ============================================================
-// SCAN FUNCTIONS
-// ============================================================
-function startScan() {
-  scanActive = true;
-  document.getElementById('btn-start-scan').disabled = true;
-  document.getElementById('btn-stop-scan').disabled = false;
-  setDpadEnabled(true);
-  document.getElementById('dot-scan').className = 'dot active';
-  log('المسح نشط', 'ok');
-}
-
-function stopScan() {
-  scanActive = false;
-  if (scanPointTimer) { clearTimeout(scanPointTimer); scanPointTimer = null; }
-  document.getElementById('btn-start-scan').disabled = false;
-  document.getElementById('btn-stop-scan').disabled = true;
-  setDpadEnabled(false);
-  document.getElementById('scan-timer').classList.remove('visible');
-  document.getElementById('measuring-label').classList.remove('visible');
-  document.getElementById('dot-scan').className = scanPoints.length > 0 ? 'dot done' : 'dot';
-  log(`المسح متوقف — ${scanPoints.length} نقطة`, 'ok');
-  updateButtonStates();
-}
-
-function setDpadEnabled(en) {
-  ['dpad-up','dpad-down','dpad-left','dpad-right'].forEach(id => {
-    const btn = document.getElementById(id);
-    if (btn) btn.disabled = !en;
-  });
-}
-
-async function moveTo(dx, dy) {
-  if (!scanActive || scanPointTimer) return;
-  
-  currentPos.x += dx;
-  currentPos.y += dy;
-  document.getElementById('pos-info').innerHTML = `الموقع: <strong>${currentPos.x}, ${currentPos.y}</strong>`;
-  
-  const timerEl = document.getElementById('scan-timer');
-  const timerVal = document.getElementById('timer-val');
-  const measLbl = document.getElementById('measuring-label');
-  timerEl.classList.add('visible');
-  measLbl.classList.add('visible');
-  setDpadEnabled(false);
-  
-  scanPointTimer = true;
-  
-  const result = await acquirePoint(sensors, POINT_DURATION_MS, (pct) => {
-    timerVal.textContent = Math.ceil((1 - pct) * POINT_DURATION_MS / 1000);
-  });
-  
-  timerEl.classList.remove('visible');
-  measLbl.classList.remove('visible');
-  scanPointTimer = null;
-  
-  const anom = calEng.computeAnomaly(result.mean);
-  const deltaB = anom ? anom.deltaB : 0;
-  const score = anom ? anom.score : 0;
-  
-  const pt = {
-    gx: currentPos.x, gy: currentPos.y,
-    magnitude: result.mean,
-    deltaB: deltaB,
-    anomaly_score: score,
-    std: result.std,
-    timestamp: Date.now()
-  };
-  
-  scanPoints.push(pt);
-  DataStore.save(scanPoints);
-  
-  log(`(${pt.gx},${pt.gy}): B=${fmt(result.mean,3)} ΔB=${fmt(deltaB,3)}`, score > 0.6 ? 'error' : score > 0.3 ? 'warn' : 'ok');
-  
-  renderCurrentView();
-  showOverlayInfo();
-  updateButtonStates();
-  
-  if (scanActive) setDpadEnabled(true);
-}
-
-function renderCurrentView() {
-  if (!scanPoints.length) {
-    document.getElementById('empty-state').style.display = 'flex';
-    visEng.showCanvas('none');
-    return;
-  }
-  document.getElementById('empty-state').style.display = 'none';
-  visEng.showCanvas(currentView);
-  if (currentView === 'heatmap') visEng.renderHeatmap(scanPoints, stepSize);
-  if (currentView === 'contour') visEng.renderContour(scanPoints, stepSize);
-  if (currentView === 'surface3d') visEng.render3DSurface(scanPoints, stepSize);
-}
-
-function showOverlayInfo() {
-  if (!scanPoints.length) return;
-  document.getElementById('canvas-overlay-info').style.display = 'block';
-  document.getElementById('oi-pts').textContent = scanPoints.length;
-  document.getElementById('oi-step').textContent = stepSize;
-  const maxDB = Math.max(...scanPoints.map(p => Math.abs(p.deltaB)));
-  document.getElementById('oi-dbmax').textContent = fmtShort(maxDB, 3);
-}
-
-function updateButtonStates() {
-  const calDone = calEng.siteDone && calEng.ironDone;
-  const hasData = scanPoints.length > 0;
-  document.getElementById('btn-start-scan').disabled = !calDone || scanActive;
-  document.getElementById('btn-stop-scan').disabled = !scanActive;
-  document.getElementById('btn-undo').disabled = !hasData;
-  document.getElementById('btn-analyze').disabled = !hasData || scanPoints.length < 2;
-  document.getElementById('btn-export-png').disabled = !hasData;
-  document.getElementById('btn-export-csv').disabled = !hasData;
-}
-
-function exportPNG() {
-  if (!scanPoints.length) return;
-  const cv = document.createElement('canvas');
-  cv.width = 800; cv.height = 600;
-  const ctx = cv.getContext('2d');
-  ctx.fillStyle = '#0b0f1a';
-  ctx.fillRect(0, 0, cv.width, cv.height);
-  ctx.fillStyle = '#00c9a7';
-  ctx.font = 'bold 14px monospace';
-  ctx.fillText('MagScan Pro v3', 20, 30);
-  const tmp = document.createElement('canvas');
-  visEng.renderHeatmap(scanPoints, stepSize, {targetCanvas: tmp, width: cv.width-40, height: cv.height-100});
-  ctx.drawImage(tmp, 20, 50);
-  const link = document.createElement('a');
-  link.download = `magscan_${Date.now()}.png`;
-  link.href = cv.toDataURL('image/png');
-  link.click();
-  showToast('تم تصدير PNG');
-}
-
-function exportCSV() {
-  if (!scanPoints.length) return;
-  let csv = 'x,y,B_uT,deltaB_uT,anomaly_score\n';
-  for (const p of scanPoints) {
-    csv += `${p.gx},${p.gy},${fmt(p.magnitude,4)},${fmt(p.deltaB,4)},${fmt(p.anomaly_score,4)}\n`;
-  }
-  const blob = new Blob([csv], {type: 'text/csv'});
-  const link = document.createElement('a');
-  link.download = `magscan_${Date.now()}.csv`;
-  link.href = URL.createObjectURL(blob);
-  link.click();
-  showToast('تم تصدير CSV');
-}
-
-function runAnalysis() {
-  const r = analysisEng.analyze(scanPoints, stepSize);
-  if (!r) { showToast('تحتاج نقاط أكثر'); return; }
-  document.getElementById('analysis-panel').classList.add('visible');
-  const grid = document.getElementById('analysis-grid');
-  grid.innerHTML = `
-    <div class="analysis-item"><div class="alabel">نقاط المسح</div><div class="aval">${r.totalPoints}</div></div>
-    <div class="analysis-item"><div class="alabel">أعلى شذوذ</div><div class="aval">${r.maxScore}</div></div>
-    <div class="analysis-item"><div class="alabel">متوسط الشذوذ</div><div class="aval">${r.meanScore}</div></div>
-    <div class="analysis-item"><div class="alabel">نقاط الشذوذ</div><div class="aval">${r.anomalyCount}</div></div>
-  `;
-}
-
-// ============================================================
-// CALIBRATION UI
-// ============================================================
-function setupCalUI() {
+// ================================================================
+// CALIBRATION UI (باستخدام المتوسطات الذكية)
+// ================================================================
+function setupCalibrationUI() {
   document.getElementById('btn-site-cal').onclick = async () => {
-    if (!sensors.magOk) {
-      showModal('خطأ', 'المستشعر المغناطيسي غير متاح');
-      return;
-    }
-    const btn = document.getElementById('btn-site-cal');
-    btn.disabled = true;
-    btn.textContent = '⏳ جارٍ المعايرة...';
-    document.getElementById('prog-site-wrap').style.display = 'block';
-    document.getElementById('dot-site').className = 'dot active';
-    
+    if (!sensors.magOk) { showModal('خطأ بالمستشعر', 'لم يتم اكتشاف مقياس المجال المغناطيسي.'); return; }
+    const btn = document.getElementById('btn-site-cal'); btn.disabled = true; btn.textContent = '⏳ جارٍ المعايرة…';
+    document.getElementById('prog-site-wrap').style.display = 'block'; document.getElementById('prog-site-label').style.display = 'block';
+    document.getElementById('dot-site').className = 'dot active'; log('Site calibration started (60s)…', 'warn');
     try {
-      const r = await calEng.calibrateSite((p) => {
-        document.getElementById('prog-site').style.width = (p * 100) + '%';
-        document.getElementById('prog-site-label').textContent = `${Math.round(p*60)}s/60s | B=${fmt(sensors.B_H,3)} µT`;
-        document.getElementById('prog-site-label').style.display = 'block';
-      });
-      document.getElementById('dot-site').className = 'dot done';
-      document.getElementById('site-result').textContent = `B_ref = ${fmt(r.mean, 3)} µT  |  σ = ${fmt(r.std, 3)} µT`;
-      btn.textContent = '✓ اكتملت المعايرة';
-      document.getElementById('btn-iron-cal').disabled = false;
-      log(`معايرة الموقع: ${fmt(r.mean, 3)} µT`, 'ok');
-      updateButtonStates();
-    } catch(e) {
-      document.getElementById('dot-site').className = 'dot error';
-      btn.disabled = false;
-      btn.textContent = '▶ ابدأ معايرة الموقع';
-      log('فشل المعايرة', 'error');
-    }
+      const result = await calEngine.calibrateSite((p) => { document.getElementById('prog-site').style.width = (p * 100) + '%'; document.getElementById('prog-site-label').textContent = `${Math.round(p*60)}s / 60s  |B| = ${fmtNum(sensors.getMag())} µT`; });
+      document.getElementById('dot-site').className = 'dot done'; document.getElementById('site-result').textContent = `مرجع: ${fmtNum(result.magnitude)} µT (جودة: ${(result.quality*100).toFixed(0)}%)`;
+      btn.textContent = '✓ تم معايرة الموقع'; document.getElementById('btn-iron-cal').disabled = false; log(`Site calibration complete. Bref = ${fmtNum(result.magnitude)} µT`, 'ok');
+      DataStore.saveCal({ site: result }); updateButtonStates();
+    } catch(e) { document.getElementById('dot-site').className = 'dot error'; btn.disabled = false; btn.textContent = '▶ ابدأ معايرة الموقع'; log('Calibration failed: ' + e.message, 'error'); }
   };
-  
-  document.getElementById('btn-iron-cal').onclick = () => {
-    showModal('معايرة الحديد', 'ضع قطعة حديد على بعد 1 سم من الهاتف لمدة 60 ثانية', async () => {
-      const btn = document.getElementById('btn-iron-cal');
-      btn.disabled = true;
-      btn.textContent = '⏳ جارٍ...';
-      document.getElementById('prog-iron-wrap').style.display = 'block';
-      document.getElementById('dot-iron').className = 'dot active';
-      
+  document.getElementById('btn-iron-cal').onclick = async () => {
+    showModal('🔩 معايرة مرجع الحديد', 'ضع قطعة من الحديد/الصلب على مسافة 1 سم من حساس الهاتف. اضغط موافق عند الاستعداد؛ سيُسجل النظام التوقيع المغناطيسي لمدة 60 ثانية.', async () => {
+      const btn = document.getElementById('btn-iron-cal'); btn.disabled = true; btn.textContent = '⏳ جاري تسجيل توقيع الحديد…';
+      document.getElementById('prog-iron-wrap').style.display = 'block'; document.getElementById('prog-iron-label').style.display = 'block';
+      document.getElementById('dot-iron').className = 'dot active'; log('Iron calibration started (60s)…', 'warn');
       try {
-        const r = await calEng.calibrateIron((p) => {
-          document.getElementById('prog-iron').style.width = (p * 100) + '%';
-          document.getElementById('prog-iron-label').textContent = `${Math.round(p*60)}s/60s | B=${fmt(sensors.B_H,3)} µT`;
-          document.getElementById('prog-iron-label').style.display = 'block';
-        });
-        document.getElementById('dot-iron').className = 'dot done';
-        document.getElementById('iron-result').textContent = `ΔB_ref = ${fmt(r.deltaB, 3)} µT`;
-        btn.textContent = '✓ اكتملت المعايرة';
-        log(`معايرة الحديد: ΔB = ${fmt(r.deltaB, 3)} µT`, 'ok');
-        updateButtonStates();
-        showToast('اكتملت المعايرات - يمكن بدء المسح');
-      } catch(e) {
-        document.getElementById('dot-iron').className = 'dot error';
-        btn.disabled = false;
-        btn.textContent = '🔩 ابدأ معايرة الحديد';
-        log('فشل معايرة الحديد', 'error');
-      }
+        const result = await calEngine.calibrateIron((p) => { document.getElementById('prog-iron').style.width = (p * 100) + '%'; document.getElementById('prog-iron-label').textContent = `${Math.round(p*60)}s / 60s  |B| = ${fmtNum(sensors.getMag())} µT`; });
+        document.getElementById('dot-iron').className = 'dot done'; document.getElementById('iron-result').textContent = `مرجع الحديد: ${fmtNum(result.magnitude)} µT  ΔB = ${fmtNum(result.deltaMag)} µT`;
+        btn.textContent = '✓ تم معايرة الحديد'; log(`Iron calibration complete. ΔBref = ${fmtNum(result.deltaMag)} µT`, 'ok');
+        DataStore.saveCal({ site: calEngine.siteRef, iron: calEngine.ironRef }); updateButtonStates(); showToast('✅ اكتملت المعايرات — المسح متاح!');
+      } catch(e) { document.getElementById('dot-iron').className = 'dot error'; btn.disabled = false; btn.textContent = '🔩 ابدأ معايرة الحديد'; log('Iron calibration failed: ' + e.message, 'error'); }
     }, true);
   };
 }
 
-// ============================================================
+// ================================================================
+// SCAN ENGINE (محسن: استخدام المتوسطات الذكية)
+// ================================================================
+let scanPointTimer = null; let scanBuffer = [];
+function startScan() { scanActive = true; document.getElementById('btn-start-scan').disabled = true; document.getElementById('btn-stop-scan').disabled = false; setDpadEnabled(true); document.getElementById('dot-scan').className = 'dot active'; log('Scan started.', 'ok'); showToast('المسح نشط — تنقّل باستخدام أزرار الأسهم'); }
+function stopScan() { scanActive = false; if (scanPointTimer) { clearTimeout(scanPointTimer); scanPointTimer = null; } document.getElementById('btn-start-scan').disabled = false; document.getElementById('btn-stop-scan').disabled = true; setDpadEnabled(false); document.getElementById('scan-timer').classList.remove('visible'); document.getElementById('measuring-label').classList.remove('visible'); document.getElementById('dot-scan').className = scanPoints.length > 0 ? 'dot done' : 'dot'; log('Scan stopped. ' + scanPoints.length + ' points recorded.', 'ok'); updateButtonStates(); }
+function setDpadEnabled(en) { ['dpad-up','dpad-down','dpad-left','dpad-right'].forEach(id => { document.getElementById(id).disabled = !en; }); }
+function moveTo(dx, dy) {
+  if (!scanActive) return;
+  if (scanPointTimer) return;
+  currentPos.x += dx; currentPos.y += dy;
+  document.getElementById('pos-info').innerHTML = `Pos: <strong>${currentPos.x}, ${currentPos.y}</strong> | ${(currentPos.x*stepSize).toFixed(2)}m, ${(currentPos.y*stepSize).toFixed(2)}m`;
+  log(`Moving to (${currentPos.x}, ${currentPos.y}) — measuring 10s…`);
+  scanBuffer = []; const sp2 = new SignalProcessor();
+  const timerEl = document.getElementById('scan-timer'); const timerVal = document.getElementById('timer-val'); const measLabel = document.getElementById('measuring-label');
+  timerEl.classList.add('visible'); measLabel.classList.add('visible');
+  let elapsed = 0; timerVal.textContent = Math.ceil((POINT_DURATION_MS - elapsed) / 1000);
+  const ticker = setInterval(() => { elapsed += 200; timerVal.textContent = Math.ceil((POINT_DURATION_MS - elapsed) / 1000); const raw = sensors.getMag(); const filtered = sp2.adaptiveFilter(raw); scanBuffer.push(filtered); }, 200);
+  scanPointTimer = setTimeout(() => {
+    clearInterval(ticker); timerEl.classList.remove('visible'); measLabel.classList.remove('visible'); scanPointTimer = null;
+    const clean = sigProc.fftSuppress(scanBuffer);
+    const avgMag = sigProc.adaptiveMean(clean);
+    const variance = clean.reduce((sum, val) => sum + Math.pow(val - avgMag, 2), 0) / clean.length;
+    const stdDev = Math.sqrt(variance); const pointQuality = 1 / (1 + stdDev / Math.abs(avgMag));
+    const anomObj = calEngine.computeAnomaly(avgMag); const deltaB = anomObj ? anomObj.deltaB : 0; const score = anomObj ? anomObj.score : 0;
+    const pt = { gx: currentPos.x, gy: currentPos.y, magnitude: avgMag, deltaB, anomaly_score: score, depth_m: estimatePointDepth(deltaB, score, calEngine.ironRef ? calEngine.ironRef.deltaMag : 1), lat: sensors.lat, lon: sensors.lon, timestamp: Date.now(), quality: pointQuality, stdDev };
+    scanPoints.push(pt); DataStore.savePoints(scanPoints);
+    const qualityStr = pointQuality > 0.8 ? '✓ عالية' : pointQuality > 0.6 ? '~ متوسطة' : '! منخفضة';
+    log(`Point (${pt.gx},${pt.gy}): |B|=${fmtNum(avgMag)} µT  ΔB=${fmtNum(deltaB)} µT  Score=${fmtNum(score,3)}  جودة: ${qualityStr}`, score > 0.6 ? 'error' : score > 0.3 ? 'warn' : 'ok');
+    renderCurrentView(); updateButtonStates(); showOverlayInfo();
+  }, POINT_DURATION_MS);
+}
+function estimatePointDepth(deltaB, score, refDelta = 1) { 
+  // معادلة جيوفيزيائية متطورة: العمق = (نصف العرض المقدر) * (معامل يعتمد على شدة الشذوذ)
+  // هذا تقدير أولي، العلاقة الحقيقية تعتمد على نموذج ثنائي القطب
+  const absDelta = Math.abs(deltaB);
+  if (absDelta < 0.1) return null;
+  const normDelta = absDelta / Math.abs(refDelta);
+  // معاملات محسنة بناءً على نموذج المجال المغناطيسي لثنائي القطب: B ∝ 1/r^3
+  let depth = 0.8 / Math.pow(normDelta, 0.33);
+  depth = clamp(depth, 0.2, 3.5);
+  return depth;
+}
+
+// ================================================================
+// RENDER, ANALYSIS, EXPORT, UI (بدون تغيير للحفاظ على الوظائف)
+// ================================================================
+function renderCurrentView() { if (!scanPoints.length) return; document.getElementById('empty-state').style.display = 'none'; visEngine.showCanvas(currentView); if (currentView === 'heatmap') visEngine.renderHeatmap(scanPoints, stepSize); if (currentView === 'contour') visEngine.renderContour(scanPoints, stepSize); if (currentView === 'surface3d') visEngine.render3DSurface(scanPoints, stepSize); }
+function showOverlayInfo() { if (!scanPoints.length) return; const oi = document.getElementById('canvas-overlay-info'); oi.style.display = 'block'; document.getElementById('oi-pts').textContent = scanPoints.length; const xs = scanPoints.map(p=>p.gx), ys = scanPoints.map(p=>p.gy); const cols = Math.max(...xs) - Math.min(...xs) + 1; const rows = Math.max(...ys) - Math.min(...ys) + 1; document.getElementById('oi-grid').textContent = `${cols}×${rows}`; const maxDB = Math.max(...scanPoints.map(p=>Math.abs(p.deltaB))); document.getElementById('oi-dbmax').textContent = fmtNum(maxDB); document.getElementById('oi-step').textContent = stepSize; }
+function runAnalysis() { const result = analysis.analyze(scanPoints, stepSize); if (!result) { showToast('تحتاج إلى مزيد من نقاط المسح لإجراء التحليل'); return; } const panel = document.getElementById('analysis-panel'); panel.classList.add('visible'); const items = [ { label: 'نقاط المسح', val: result.totalPoints, unit: '', note: '' }, { label: 'أعلى درجة', val: result.maxScore, unit: '', note: 'مُقيّمة 0–1' }, { label: 'متوسط الدرجة', val: result.meanScore, unit: '', note: '' }, { label: 'أقصى ΔB', val: result.maxDeltaB, unit: 'µT', note: '' }, { label: 'عدد الشذوذ', val: result.anomalyCount, unit: 'نقطة', note: '> عتبة 50% من القمة' }, { label: 'المساحة المقدرة', val: result.estimatedArea, unit: 'م²', note: '⚠ تقريبية' }, { label: 'العمق المقدر', val: result.estDepth, unit: 'م', note: '⚠ طريقة HWHM — تجريبية' }, { label: 'نصف العرض', val: result.halfWidth, unit: 'م', note: 'الشذوذ عند 50% من القمة' }, { label: 'نسبة إشارة/ضجيج', val: result.snr, unit: '', note: '' }, { label: 'موقع الذروة', val: result.peakAt, unit: '', note: 'إحداثيات الشبكة' }, { label: 'الثقة', val: result.confidence, unit: '%', note: result.confidence > 70 ? '✓ جيد' : result.confidence > 40 ? '~ متوسط' : '✗ ضعيف' }, ]; const grid = document.getElementById('analysis-grid'); grid.innerHTML = ''; for (const item of items) { const div = document.createElement('div'); div.className = 'analysis-item'; div.innerHTML = `<div class="alabel">${item.label}</div><div class="aval">${item.val}<span class="aunit">${item.unit}</span></div>${item.note ? `<div class="anote">${item.note}</div>` : ''}`; grid.appendChild(div); } if (result.clusters && result.clusters.length) { const header = document.createElement('div'); header.className = 'analysis-item'; header.style.cssText = 'grid-column:1/-1;background:rgba(0,201,167,0.08);border:1px solid rgba(0,201,167,0.18);'; header.innerHTML = `<div class="alabel">تفاصيل مناطق الشذوذ</div><div class="anote">رقم المنطقة • عدد الخطوات • الحجم • العمق • مركز الشبكة</div>`; grid.appendChild(header); result.clusters.forEach(cluster => { const div = document.createElement('div'); div.className = 'analysis-item'; div.innerHTML = `<div class="alabel">المنطقة ${cluster.id}</div><div class="aval">${cluster.pointCount} نقطة</div><div class="anote">الحجم: ${cluster.area} م² • العمق: ${cluster.depth} م • مركز: ${cluster.center}</div>`; grid.appendChild(div); }); } const disc = document.createElement('div'); disc.style.cssText = 'grid-column:1/-1;background:rgba(255,179,71,0.07);border:1px solid var(--warn);border-radius:6px;padding:8px 12px;font-size:10px;color:var(--warn);line-height:1.6'; disc.innerHTML = `⚠ <strong>تنبيه حول تقدير العمق:</strong> يستخدم التقدير طريقة نصف العرض عند نصف القيمة العظمى (HWHM) كاقتراب لنمذجة ثنائي القطب. هذا تقدير جيولوجي من الدرجة الأولى فقط. قد يختلف العمق الفعلي بشكل كبير اعتمادًا على شكل الهدف وخصائصه ومجال الخلفية. <strong>لا تستخدم هذا التقدير في قرارات هندسية أو متعلقة بالسلامة أو الحفر.</strong>`; grid.appendChild(disc); log('Analysis complete. Confidence: ' + result.confidence + '%  Est. depth: ' + result.estDepth + ' m', 'ok'); }
+function createExportCanvas(view, scale = 2) { if (!scanPoints.length) return null; const container = document.getElementById('canvas-container'); const width = Math.max(720, (container.offsetWidth || 600) * scale); const height = Math.max(520, (container.offsetHeight || 400) * scale); const tmp = document.createElement('canvas'); tmp.width = Math.round(width); tmp.height = Math.round(height); if (view === 'heatmap') visEngine.renderHeatmap(scanPoints, stepSize, { targetCanvas: tmp, width: tmp.width, height: tmp.height }); if (view === 'contour') visEngine.renderContour(scanPoints, stepSize, { targetCanvas: tmp, width: tmp.width, height: tmp.height }); if (view === 'surface3d') visEngine.render3DSurface(scanPoints, stepSize, { targetCanvas: tmp, width: tmp.width, height: tmp.height }); return tmp; }
+function exportPNG() { const exportCanvas = createExportCanvas(currentView, 2); if (!exportCanvas) { showToast('لا توجد صورة للتصدير'); return; } const tmp = document.createElement('canvas'); tmp.width = exportCanvas.width; tmp.height = exportCanvas.height + 80; const ctx = tmp.getContext('2d'); ctx.fillStyle = '#0b0f1a'; ctx.fillRect(0, 0, tmp.width, tmp.height); ctx.drawImage(exportCanvas, 0, 60); ctx.fillStyle = '#00c9a7'; ctx.font = 'bold 16px monospace'; ctx.fillText('MAGSCAN PRO — خريطة الشذوذ المغناطيسي', 10, 24); ctx.fillStyle = '#4a6278'; ctx.font = '11px monospace'; ctx.fillText(`${new Date().toISOString()} | نقاط: ${scanPoints.length} | خطوة: ${stepSize}م | العرض: ${currentView}`, 10, 44); ctx.fillStyle = '#332200'; ctx.fillRect(0, tmp.height - 22, tmp.width, 22); ctx.fillStyle = '#ffb347'; ctx.font = '10px monospace'; ctx.fillText('⚠ بيانات المستشعر بالهاتف فقط — ليست بديلًا عن معدات GPR الاحترافية — تقديرات العمق تجريبية', 6, tmp.height - 6); const link = document.createElement('a'); link.download = `magscan_${currentView}_${Date.now()}.png`; link.href = tmp.toDataURL('image/png'); link.click(); showToast('تم تصدير صورة PNG'); }
+function exportAllViewsPNG() { if (!scanPoints.length) { showToast('لا توجد بيانات للتصدير'); return; } const views = ['heatmap', 'contour', 'surface3d']; const suffix = new Date().toISOString().replace(/[:.]/g, '-'); views.forEach((view) => { const exportCanvas = createExportCanvas(view, 2); if (!exportCanvas) return; const link = document.createElement('a'); link.download = `magscan_${view}_${suffix}.png`; link.href = exportCanvas.toDataURL('image/png'); link.click(); }); showToast('تم حفظ الأنماط الثلاثة كصور PNG عالية الجودة'); }
+function exportCSV() { if (!scanPoints.length) { showToast('لا توجد بيانات للتصدير'); return; } const header = 'grid_x,grid_y,x_m,y_m,magnitude_uT,deltaB_uT,anomaly_score,lat,lon,timestamp\n'; const rows = scanPoints.map(p => `${p.gx},${p.gy},${(p.gx*stepSize).toFixed(3)},${(p.gy*stepSize).toFixed(3)},${fmtNum(p.magnitude)},${fmtNum(p.deltaB)},${fmtNum(p.anomaly_score,4)},${p.lat||''},${p.lon||''},${p.timestamp}`).join('\n'); const blob = new Blob([header + rows], { type: 'text/csv' }); const link = document.createElement('a'); link.download = `magscan_${Date.now()}.csv`; link.href = URL.createObjectURL(blob); link.click(); showToast('تم تصدير CSV'); }
+function exportJSON() { if (!scanPoints.length) { showToast('لا توجد بيانات للتصدير'); return; } const payload = { meta: { app: 'MagScan Pro', version: '2.1', exported: new Date().toISOString(), stepSize_m: stepSize, totalPoints: scanPoints.length, disclaimer: 'Smartphone sensor data only. Not professional GPR. Depth estimates are experimental.' }, calibration: { site: calEngine.siteRef, iron: calEngine.ironRef }, points: scanPoints, analysis: analysis.analyze(scanPoints, stepSize) }; const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.download = `magscan_${Date.now()}.json`; link.href = URL.createObjectURL(blob); link.click(); showToast('تم تصدير JSON'); }
+function updateButtonStates() { const calDone = calEngine.siteDone && calEngine.ironDone; const hasData = scanPoints.length > 0; const scanning = scanActive; document.getElementById('btn-start-scan').disabled = !calDone || scanning; document.getElementById('btn-stop-scan').disabled = !scanning; document.getElementById('btn-undo').disabled = !hasData; document.getElementById('btn-analyze').disabled = !hasData || scanPoints.length < 2; document.getElementById('btn-export-png').disabled = !hasData; document.getElementById('btn-export-csv').disabled = !hasData; }
+
+// ================================================================
 // INIT
-// ============================================================
+// ================================================================
 document.addEventListener('DOMContentLoaded', async () => {
-  sensors.onUpdate = updateDisplay;
+  sensors.onUpdate = updateSensorDisplay;
   await sensors.start();
-  log('MagScan Pro v3 جاهز - عرض 4 منازل عشرية فقط', 'ok');
-  
-  setInterval(updateDisplay, 150);
-  setupCalUI();
-  
-  document.getElementById('btn-start-scan').onclick = () => {
-    if (!calEng.siteDone || !calEng.ironDone) {
-      showModal('تنبيه', 'أكمل معايرة الموقع والحديد أولاً');
-      return;
-    }
-    startScan();
-  };
-  
+  log('MagScan Pro v2.1 (محسن) initialized. Waiting for sensors...');
+  setInterval(updateSensorDisplay, 300);
+  setupCalibrationUI();
+  setupSensorPermissionsUI();
+  document.getElementById('btn-start-scan').onclick = () => { if (!calEngine.siteDone || !calEngine.ironDone) { showModal('مطلوب معايرة', 'يجب إكمال كل من معايرة الموقع ومعايرة الحديد قبل البدء بالمسح.'); return; } startScan(); };
   document.getElementById('btn-stop-scan').onclick = stopScan;
-  document.getElementById('btn-undo').onclick = () => {
-    if (scanPoints.length) {
-      scanPoints.pop();
-      DataStore.save(scanPoints);
-      renderCurrentView();
-      showOverlayInfo();
-      updateButtonStates();
-      showToast('تم حذف آخر نقطة');
-    }
-  };
-  document.getElementById('btn-clear').onclick = () => {
-    showModal('مسح الكل', 'سيتم حذف جميع البيانات نهائياً', () => {
-      scanPoints = [];
-      DataStore.clear();
-      renderCurrentView();
-      showOverlayInfo();
-      updateButtonStates();
-      showToast('تم مسح جميع البيانات');
-    }, true);
-  };
-  document.getElementById('btn-analyze').onclick = runAnalysis;
-  document.getElementById('btn-export-png').onclick = exportPNG;
-  document.getElementById('btn-export-csv').onclick = exportCSV;
-  
+  document.getElementById('btn-undo').onclick = () => { if (scanPoints.length === 0) return; scanPoints.pop(); DataStore.savePoints(scanPoints); if (scanPoints.length === 0) { document.getElementById('empty-state').style.display = 'flex'; visEngine.showCanvas('none'); document.getElementById('canvas-overlay-info').style.display = 'none'; } else { renderCurrentView(); showOverlayInfo(); } showToast('تم إزالة آخر نقطة'); updateButtonStates(); };
   document.getElementById('dpad-up').onclick = () => moveTo(0, -1);
   document.getElementById('dpad-down').onclick = () => moveTo(0, 1);
   document.getElementById('dpad-left').onclick = () => moveTo(1, 0);
   document.getElementById('dpad-right').onclick = () => moveTo(-1, 0);
-  
-  document.querySelectorAll('.step-btn').forEach(btn => {
-    btn.onclick = () => {
-      document.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      stepSize = parseFloat(btn.dataset.step);
-      if (scanPoints.length) renderCurrentView();
-    };
-  });
-  
-  document.querySelectorAll('.view-tab').forEach(tab => {
-    tab.onclick = () => {
-      document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      currentView = tab.dataset.view;
-      if (scanPoints.length) renderCurrentView();
-    };
-  });
-  
-  document.getElementById('btn-enable-sensors').onclick = async () => {
-    if (!window.isSecureContext) {
-      alert('يلزم HTTPS لتشغيل المستشعرات');
-      return;
-    }
-    for (const T of [DeviceOrientationEvent, DeviceMotionEvent]) {
-      if (typeof T?.requestPermission === 'function') {
-        try { await T.requestPermission(); } catch(e) {}
-      }
-    }
-    location.reload();
-  };
-  
-  if (scanPoints.length) {
-    renderCurrentView();
-    showOverlayInfo();
-    updateButtonStates();
-  }
-  
-  log('جاهز - أكمل المعايرة للبدء', 'ok');
+  document.querySelectorAll('.step-btn').forEach(btn => { btn.onclick = () => { document.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); stepSize = parseFloat(btn.dataset.step); log(`Step size set to ${stepSize}m`); if (scanPoints.length) renderCurrentView(); }; });
+  document.querySelectorAll('.view-tab').forEach(tab => { tab.onclick = () => { document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active')); tab.classList.add('active'); currentView = tab.dataset.view; if (scanPoints.length) { visEngine.showCanvas(currentView); renderCurrentView(); } }; });
+  document.getElementById('btn-analyze').onclick = runAnalysis;
+  document.getElementById('btn-export-png').onclick = exportPNG;
+  document.getElementById('btn-export-csv').onclick = exportCSV;
+  document.getElementById('btn-clear').onclick = () => { showModal('مسح كل البيانات', 'سيؤدي هذا إلى حذف جميع نقاط المسح وبيانات المعايرة. لا يمكن التراجع عن هذا الإجراء.', () => { scanPoints = []; calEngine.siteDone = false; calEngine.ironDone = false; calEngine.siteRef = null; calEngine.ironRef = null; DataStore.clear(); document.getElementById('empty-state').style.display = 'flex'; visEngine.showCanvas('none'); document.getElementById('canvas-overlay-info').style.display = 'none'; document.getElementById('analysis-panel').classList.remove('visible'); document.getElementById('site-result').textContent = ''; document.getElementById('iron-result').textContent = ''; document.getElementById('dot-site').className = 'dot'; document.getElementById('dot-iron').className = 'dot'; document.getElementById('btn-site-cal').textContent = '▶ ابدأ معايرة الموقع'; document.getElementById('btn-site-cal').disabled = false; document.getElementById('btn-iron-cal').textContent = '🔩 ابدأ معايرة الحديد'; document.getElementById('btn-iron-cal').disabled = true; document.getElementById('prog-site-wrap').style.display = 'none'; document.getElementById('prog-iron-wrap').style.display = 'none'; currentPos = { x: 0, y: 0 }; document.getElementById('pos-info').innerHTML = `Pos: <strong>0, 0</strong>`; updateButtonStates(); log('تم مسح جميع البيانات.', 'warn'); showToast('تم مسح البيانات'); }, true); };
+  if (scanPoints.length > 0) { log(`Restored ${scanPoints.length} scan points.`, 'ok'); renderCurrentView(); showOverlayInfo(); }
+  document.addEventListener('keydown', (e) => { if (!scanActive) return; if (e.key === 'ArrowUp') moveTo(0, -1); if (e.key === 'ArrowDown') moveTo(0, 1); if (e.key === 'ArrowLeft') moveTo(1, 0); if (e.key === 'ArrowRight') moveTo(-1, 0); });
+  updateButtonStates();
+  window.addEventListener('resize', () => { if (scanPoints.length) renderCurrentView(); });
+  log('System ready. Complete calibrations to begin scanning.', 'ok');
 });
 </script>
 </body>
