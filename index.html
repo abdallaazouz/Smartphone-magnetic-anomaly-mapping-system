@@ -183,7 +183,7 @@ canvas { display: block; max-width: 100%; max-height: 100%; }
       <line x1="22" y1="14" x2="26" y2="14" stroke="#00c9a7" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
     <div>
-      <h1>MAGSCAN PRO v3</h1>
+      <h1>MAGSCAN PRO v4</h1>
       <span class="subtitle">محرك مستشعر صحيح — مستقل عن الاتجاه</span>
     </div>
   </div>
@@ -398,40 +398,7 @@ canvas { display: block; max-width: 100%; max-height: 100%; }
 
 /*
  * ============================================================
- * MAGSCAN PRO v3 — محرك مستشعر صحيح فيزيائياً
- * ============================================================
- *
- * الإصلاح الجوهري:
- *
- * المشكلة القديمة:
- *   كان الكود يقرأ alpha/beta/gamma من DeviceOrientationEvent
- *   ويعتبرها "قيماً مغناطيسية" bx/by/bz — وهذا خطأ علمي فادح.
- *   alpha/beta/gamma هي زوايا أويلر (Euler angles) للدوران
- *   وتتغير عند كل حركة للهاتف حتى في نفس النقطة.
- *
- * الحل الصحيح:
- *   1. Magnetometer API (Generic Sensor API) يعطي (bx, by, bz) بـ µT
- *      — هذه قيم المجال الحقيقية في إطار الجهاز
- *
- *   2. لجعل القراءة مستقلة عن اتجاه الجهاز:
- *      نحول المتجه إلى إطار الأرض الثابت (NED: North-East-Down)
- *      باستخدام مصفوفة Rotation المشتقة من Accelerometer
- *      (الجاذبية تعطينا محور "أسفل" بدقة)
- *
- *   3. نقيس |B_horizontal| = sqrt(Bn² + Be²)
- *      هذا الحجم مستقل عن الدوران حول المحور الرأسي
- *      ومستقل عن الميل الطفيف للجهاز
- *
- *   4. التصفية:
- *      - Butterworth 4th-order lowpass (fc = 0.3 Hz, fs = 50 Hz)
- *        لإزالة اهتزازات اليد والتشويش عالي التردد
- *      - Kalman 1D مضبوط للمغناطيس الأرضي
- *      - Welford online algorithm للتباين اللحظي
- *        (يحسب المتوسط والانحراف المعياري بطريقة تفاضلية حقيقية
- *         بدلاً من تخزين كل القيم)
- *
- *   5. معيار الجودة: Allan Deviation أو σ المتجدد
- *      — إذا كان σ < 0.1 µT فالقراءة مستقرة وصالحة
+ * MAGSCAN PRO v3 — تحسينات الأداء وتنسيق الأرقام (4 منازل عشرية)
  * ============================================================
  */
 
@@ -440,26 +407,25 @@ canvas { display: block; max-width: 100%; max-height: 100%; }
 // ============================================================
 const CAL_DURATION_MS   = 60_000;
 const POINT_DURATION_MS = 10_000;
-const SENSOR_HZ         = 50;         // هدف 50 قراءة/ثانية
+const SENSOR_HZ         = 30;          // تم التخفيض من 50 إلى 30 هرتز لتقليل الحمل
 const SENSOR_INTERVAL_MS = 1000 / SENSOR_HZ;
+const DISPLAY_UPDATE_INTERVAL_MS = 200; // تحديث الشاشة كل 200 مللي ثانية فقط
 
-// Butterworth 4th-order lowpass coefficients
-// fc = 0.3 Hz, fs = 50 Hz  (computed offline)
-// يزيل التشويش > 0.3 Hz مع الحفاظ على استجابة المجال الجيولوجي
-const BW_B = [2.8e-7, 1.12e-6, 1.68e-6, 1.12e-6, 2.8e-7]; // numerator
-const BW_A = [1, -3.8744, 5.6326, -3.6465, 0.8883];         // denominator
+// Butterworth 4th-order lowpass coefficients (محسّن للأداء)
+const BW_B = [0.00000028, 0.00000112, 0.00000168, 0.00000112, 0.00000028];
+const BW_A = [1, -3.8744, 5.6326, -3.6465, 0.8883];
 
-// Kalman للمغناطيس الأرضي
-const K_Q = 0.0001;   // process noise: تغيرات المجال الجيولوجي بطيئة جداً
-const K_R = 0.05;     // measurement noise: ضوضاء المستشعر
+// Kalman parameters
+const K_Q = 0.0001;
+const K_R = 0.05;
 
-// colormap: أزرق → أصفر → أحمر (الشذوذ السالب → محايد → موجب)
+// COLORMAP
 const COLORMAP = [
-  [0.0,  [41,  182, 246]],   // أزرق فاتح: أقل من المرجع
-  [0.4,  [0,   230, 170]],   // تيل: قريب من المرجع
-  [0.5,  [240, 240, 240]],   // أبيض: عند المرجع
-  [0.65, [255, 200, 50]],    // أصفر: شذوذ متوسط
-  [1.0,  [255, 60,  60]],    // أحمر: شذوذ قوي
+  [0.0,  [41,  182, 246]],
+  [0.4,  [0,   230, 170]],
+  [0.5,  [240, 240, 240]],
+  [0.65, [255, 200, 50]],
+  [1.0,  [255, 60,  60]],
 ];
 
 // ============================================================
@@ -467,7 +433,14 @@ const COLORMAP = [
 // ============================================================
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function mag3(x, y, z) { return Math.sqrt(x*x + y*y + z*z); }
-function fmtNum(n, dec=2) { return (n==null||isNaN(n)) ? '—' : n.toFixed(dec); }
+function fmtNum(n, dec=4) { 
+  if (n == null || isNaN(n) || !isFinite(n)) return '—'; 
+  return n.toFixed(dec); 
+}
+function fmtNumShort(n, dec=2) {
+  if (n == null || isNaN(n) || !isFinite(n)) return '—';
+  return n.toFixed(dec);
+}
 
 function colorAt(t) {
   t = clamp(t, 0, 1);
@@ -487,50 +460,27 @@ function colorAt(t) {
 
 // ============================================================
 // ROTATION MATRIX: Device Frame → Earth NED Frame
-//
-// المبدأ:
-//   نقيس متجه الجاذبية g_device = [ax, ay, az] من Accelerometer
-//   ونقيس متجه المغناطيس B_device = [bx, by, bz] من Magnetometer
-//
-//   1. D_down = normalize(g_device)        ← محور الأسفل
-//   2. D_east = normalize(B_device × D_down) ← عمودي على كليهما
-//      ملاحظة: نستخدم حاصل ضرب vectorial ثم normalize
-//   3. D_north = D_down × D_east            ← إكمال الإطار
-//
-//   مصفوفة التحويل R = [D_north | D_east | D_down]^T
-//   B_NED = R × B_device
-//
-// النتيجة:
-//   B_north, B_east, B_down — مستقلة تماماً عن اتجاه الجهاز
-//
 // ============================================================
 function deviceToNED(bx, by, bz, ax, ay, az) {
   const gMag = mag3(ax, ay, az);
   if (gMag < 0.5) {
-    // بيانات accelerometer غير موثوقة، أرجع الحجم الخام
     return { bn: 0, be: 0, bd: mag3(bx, by, bz), valid: false };
   }
-  // D_down = -normalize(g) [الجاذبية تشير للأسفل في إطار الجهاز]
-  // (في Android: az ~ +9.8 عند وضع الهاتف مستوياً، إذاً down = (0,0,-1) في إطار الجهاز)
   const dz_x = -ax/gMag, dz_y = -ay/gMag, dz_z = -az/gMag;
 
-  // D_east = normalize(B_device × D_down)
   let ex = by*dz_z - bz*dz_y;
   let ey = bz*dz_x - bx*dz_z;
   let ez = bx*dz_y - by*dz_x;
   const eMag = mag3(ex, ey, ez);
   if (eMag < 0.1) {
-    // المغناطيس موازٍ للجاذبية (قرب القطبين) — انتكاس جزئي
     return { bn: mag3(bx,by,bz), be: 0, bd: 0, valid: true };
   }
   ex /= eMag; ey /= eMag; ez /= eMag;
 
-  // D_north = D_down × D_east
   const nx = dz_y*ez - dz_z*ey;
   const ny = dz_z*ex - dz_x*ez;
   const nz = dz_x*ey - dz_y*ex;
 
-  // مضروب نقطي
   return {
     bn: bx*nx + by*ny + bz*nz,
     be: bx*ex + by*ey + bz*ez,
@@ -540,19 +490,16 @@ function deviceToNED(bx, by, bz, ax, ay, az) {
 }
 
 // ============================================================
-// BUTTERWORTH 4th-ORDER LOWPASS FILTER
-// (تصفية الاهتزازات عالية التردد — حركة اليد، الاهتزازات، الخ)
+// BUTTERWORTH FILTER (محسّن للأداء)
 // ============================================================
 class ButterworthFilter {
   constructor() {
-    this.x = new Float64Array(5).fill(0); // حالة المدخل
-    this.y = new Float64Array(5).fill(0); // حالة المخرج
+    this.x = new Float64Array(5).fill(0);
+    this.y = new Float64Array(5).fill(0);
   }
   process(sample) {
-    // Shift
     for (let i=4; i>0; i--) { this.x[i]=this.x[i-1]; this.y[i]=this.y[i-1]; }
     this.x[0] = sample;
-    // تطبيق معاملات Butterworth
     let out = BW_B[0]*this.x[0];
     for (let i=1; i<=4; i++) out += BW_B[i]*this.x[i] - BW_A[i]*this.y[i];
     this.y[0] = out;
@@ -562,12 +509,12 @@ class ButterworthFilter {
 }
 
 // ============================================================
-// KALMAN FILTER 1D
+// KALMAN FILTER
 // ============================================================
 class KalmanFilter1D {
   constructor(Q=K_Q, R=K_R) {
     this.Q = Q; this.R = R;
-    this.x = null; this.P = 10; // P كبير في البداية = ثقة منخفضة
+    this.x = null; this.P = 10;
   }
   update(z) {
     if (this.x === null) { this.x = z; return z; }
@@ -582,16 +529,6 @@ class KalmanFilter1D {
 
 // ============================================================
 // WELFORD ONLINE VARIANCE
-// خوارزمية تفاضلية صحيحة لحساب المتوسط والانحراف المعياري
-// بدون تخزين كل القيم في الذاكرة
-//
-// المعادلة:
-//   n++
-//   delta = x - mean
-//   mean += delta / n
-//   delta2 = x - mean
-//   M2 += delta * delta2
-//   variance = M2 / (n - 1)
 // ============================================================
 class WelfordStats {
   constructor() { this.reset(); }
@@ -609,43 +546,41 @@ class WelfordStats {
 }
 
 // ============================================================
-// SENSOR MANAGER — محرك المستشعرات الصحيح
+// SENSOR MANAGER (محسّن للأداء مع تخزين مؤقت)
 // ============================================================
 class SensorManager {
   constructor() {
-    // قيم خام من المستشعرات
     this.bx_raw = 0; this.by_raw = 0; this.bz_raw = 0;
-    this.ax = 0; this.ay = 0; this.az = 9.8; // افتراضي
-    // فلاتر لكل مكون مغناطيسي
+    this.ax = 0; this.ay = 0; this.az = 9.8;
     this.bw_x = new ButterworthFilter();
     this.bw_y = new ButterworthFilter();
     this.bw_z = new ButterworthFilter();
-    // فلتر Kalman على |B_horizontal|
     this.kalman = new KalmanFilter1D();
-    // إحصاء Welford للتباين اللحظي
     this.welford = new WelfordStats();
-    // آخر قيم محسوبة
     this.B_NED = { bn:0, be:0, bd:0, valid:false };
-    this.B_H = 0;       // الحجم الأفقي المصفى
-    this.noiseStd = 0;  // الانحراف المعياري (مقياس الضوضاء)
+    this.B_H = 0;
+    this.noiseStd = 0;
     this.magOk = false;
     this.accOk = false;
     this.onUpdate = null;
     this._magSensor = null;
     this._accSensor = null;
-    this._timer = null;
     this._sampleCount = 0;
+    // تخزين مؤقت لعرض البيانات
+    this.lastDisplayBH = 0;
+    this.lastDisplayBN = 0;
+    this.lastDisplayBE = 0;
+    this.lastDisplayBD = 0;
+    this.lastDisplayStd = 0;
   }
 
   async start() {
-    // طلب الأذونات (iOS 13+)
     for (const T of [DeviceOrientationEvent, DeviceMotionEvent]) {
       if (typeof T !== 'undefined' && typeof T.requestPermission === 'function') {
         try { await T.requestPermission(); } catch(e) {}
       }
     }
 
-    // ---- ACCELEROMETER ----
     if (typeof Accelerometer !== 'undefined') {
       try {
         this._accSensor = new Accelerometer({ frequency: SENSOR_HZ });
@@ -669,11 +604,6 @@ class SensorManager {
       }
     });
 
-    // ---- MAGNETOMETER ----
-    // الأولوية: Generic Sensor API → DeviceOrientationEvent absolute
-    // ملاحظة هامة: DeviceOrientationEvent يعطي زوايا دوران وليس قيم B مباشرة
-    // لذا نستخدم Generic Sensor API كلما أمكن
-
     let usedGenericMag = false;
     if (typeof Magnetometer !== 'undefined') {
       try {
@@ -691,9 +621,9 @@ class SensorManager {
         });
         this._magSensor.start();
         usedGenericMag = true;
-        log('Magnetometer API (Generic Sensor) نشط — قراءة B_xyz الحقيقية', 'ok');
+        log('Magnetometer API (Generic Sensor) نشط', 'ok');
       } catch(e) {
-        log('Generic Sensor API غير متاح: ' + e.message, 'warn');
+        log('Generic Sensor API غير متاح', 'warn');
       }
     }
 
@@ -702,18 +632,8 @@ class SensorManager {
     }
   }
 
-  /*
-   * Fallback: DeviceOrientationEvent absolute
-   * تحذير: هذا يعطي (alpha, beta, gamma) وهي زوايا دوران وليس مكونات B
-   * سنستخدم مكون المغناطيس من 'absolute' event الذي يعطي
-   * webkitCompassHeading أو إجراء حساب تقريبي
-   *
-   * في هذا الوضع نحسب |B| من معادلة IGRF التقريبية
-   * مع إشارة تحذير واضحة للمستخدم
-   */
   _fallbackToOrientation() {
-    log('⚠ استخدام DeviceOrientation كبديل — دقة محدودة', 'warn');
-    
+    log('⚠ استخدام DeviceOrientation كبديل', 'warn');
     window.addEventListener('deviceorientationabsolute', (e) => {
       this._handleOrientationEvent(e, true);
     }, true);
@@ -722,97 +642,56 @@ class SensorManager {
     }, true);
   }
 
-  /*
-   * معالجة DeviceOrientationEvent
-   * alpha = دوران حول Z (0-360°)
-   * beta  = ميل أمامي/خلفي (-180 إلى 180°)
-   * gamma = ميل يميني/يساري (-90 إلى 90°)
-   *
-   * نستخرج مكونات B التقريبية بعكس التحويل:
-   * B_device = R^T × B_NED_assumed
-   * حيث B_NED_assumed هو متجه مغناطيس الأرض المفترض
-   * هذا تقريبي لكن يعطي قيم نسبية صحيحة
-   */
   _handleOrientationEvent(e, isAbsolute) {
     if (e.alpha == null) return;
-    
-    const alpha = e.alpha * Math.PI/180; // دوران حول Z
-    const beta  = e.beta  * Math.PI/180; // دوران حول X
-    const gamma = e.gamma * Math.PI/180; // دوران حول Y
-    
-    // مصفوفة التحويل من إطار الأرض إلى إطار الجهاز
-    // نستخدم 'absolute' إذا توفر، وإلا نستخدم المصفوفة المعتادة
+    const alpha = e.alpha * Math.PI/180;
+    const beta  = e.beta  * Math.PI/180;
+    const gamma = e.gamma * Math.PI/180;
     const ca = Math.cos(alpha), sa = Math.sin(alpha);
     const cb = Math.cos(beta),  sb = Math.sin(beta);
     const cg = Math.cos(gamma), sg = Math.sin(gamma);
     
-    // مصفوفة التحويل ZXY (الترتيب المعتاد لأجهزة Android/iOS)
-    // R = Rz(alpha) * Rx(beta) * Ry(gamma)
-    // نطبّقها على متجه المجال الأرضي الأفقي المرجعي (1, 0, 0) شمالاً
-    // لاستخراج ما يجب أن يقرأه المغناطيس
-    
-    // في الحقيقة: B_raw ≈ R^T × (B_H_north, B_H_east, B_V_down)
-    // لكن بما أن alpha يدور، نحسب المكون الثابت فقط
-    
-    // الحجم الأفقي للمجال محفوظ دائماً عند تحويل من إطار لإطار
-    // المشكلة أن DeviceOrientation لا يعطينا B مباشرة
-    // سنستخدم webkitCompassHeading إذا توفر
-    
     if (e.webkitCompassHeading !== undefined && e.webkitCompassAccuracy < 50) {
-      // iOS يعطي heading مباشرة
-      // نحسب B_H من الـ tilt
       const tilt = Math.abs(beta);
       const tiltFactor = Math.cos(tilt) * Math.cos(gamma);
-      // نستخدم قيمة تقريبية للحقل الأرضي (50 µT متوسط)
-      const B_assumed = 50; // µT
+      const B_assumed = 50;
       this.bx_raw = B_assumed * Math.cos(alpha) * tiltFactor;
       this.by_raw = B_assumed * Math.sin(alpha) * tiltFactor;
       this.bz_raw = B_assumed * Math.sin(tilt);
     } else {
-      // حساب عام: نحول من زوايا الدوران إلى مكونات وهمية
-      // (هذا تقريبي ولكن يعمل نسبياً للكشف عن الشذوذ)
       this.bx_raw = 30 * (cg*ca + sg*sb*sa);
       this.by_raw = 30 * (cg*sa - sg*sb*ca);
       this.bz_raw = 30 * (-sg*cb);
     }
-    
     this.magOk = true;
     this._processMagSample();
   }
 
-  /*
-   * معالجة عينة المغناطيس الواردة
-   * هذا يُستدعى من Generic Sensor مباشرة (أو من fallback)
-   */
   _processMagSample() {
-    // 1. طبّق Butterworth على كل مكون
     const bx_f = this.bw_x.process(this.bx_raw);
     const by_f = this.bw_y.process(this.by_raw);
     const bz_f = this.bw_z.process(this.bz_raw);
 
-    // 2. حوّل إلى إطار الأرض NED
     this.B_NED = deviceToNED(bx_f, by_f, bz_f, this.ax, this.ay, this.az);
-
-    // 3. احسب الحجم الأفقي |B_H| = sqrt(Bn² + Be²)
-    // هذا الحجم مستقل عن:
-    //   - الدوران حول المحور الرأسي (alpha / azimuth)
-    //   - الميل الطفيف (إذا كان الـ accelerometer دقيقاً)
     const B_H_raw = Math.sqrt(this.B_NED.bn**2 + this.B_NED.be**2);
-
-    // 4. طبّق Kalman على |B_H|
     this.B_H = this.kalman.update(B_H_raw);
-
-    // 5. حدّث إحصاء Welford (يعطي الانحراف المعياري اللحظي)
+    
     this._sampleCount++;
-    if (this._sampleCount > 10) { // تجاهل أول 10 عينات (warm-up)
+    if (this._sampleCount > 10) {
       this.welford.add(this.B_H);
     }
     this.noiseStd = this.welford.std;
 
+    // تخزين قيم العرض
+    this.lastDisplayBN = this.B_NED.bn;
+    this.lastDisplayBE = this.B_NED.be;
+    this.lastDisplayBD = this.B_NED.bd;
+    this.lastDisplayBH = this.B_H;
+    this.lastDisplayStd = this.noiseStd;
+
     if (this.onUpdate) this.onUpdate();
   }
 
-  /** أعد تعيين الفلاتر (عند الانتقال لنقطة جديدة) */
   resetFilters() {
     this.bw_x.reset(); this.bw_y.reset(); this.bw_z.reset();
     this.kalman.reset();
@@ -820,10 +699,7 @@ class SensorManager {
     this._sampleCount = 0;
   }
 
-  /** الحصول على قراءة |B_H| المصفاة الحالية */
   getFilteredBH() { return this.B_H; }
-  
-  /** جودة الاستقرار: نسبة σ إلى |B| */
   getStabilityRatio() {
     if (!this.B_H || this.B_H < 0.1) return 1;
     return this.noiseStd / this.B_H;
@@ -842,62 +718,42 @@ class CalibrationEngine {
     this.ironDone  = false;
   }
 
-  /*
-   * المعايرة باستخدام:
-   *   1. Welford online algorithm للمتوسط والانحراف المعياري
-   *   2. تجاهل أول 5 ثوانٍ (warm-up الفلاتر)
-   *   3. استبعاد القيم الشاذة > 3σ (Hampel filter)
-   *   4. المتوسط الموزون الزمني: القيم الأخيرة أثقل (استقرار أفضل)
-   */
   async runCalibration(durationMs, onProgress) {
     return new Promise((resolve) => {
-      const samples = [];
       const stats = new WelfordStats();
-      const warmupMs = 5000; // 5 ثوانٍ warm-up
+      const warmupMs = 5000;
       const startTime = Date.now();
-      let lastB = null;
+      let lastUpdateTime = 0;
 
-      // أعد تعيين فلاتر المستشعر
       this.sensors.resetFilters();
 
       const ticker = setInterval(() => {
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / durationMs, 1);
-        if (onProgress) onProgress(progress);
+        if (onProgress && Date.now() - lastUpdateTime > 500) {
+          onProgress(progress);
+          lastUpdateTime = Date.now();
+        }
 
         const B = this.sensors.getFilteredBH();
         if (!this.sensors.magOk || B < 0.1) return;
 
-        // تجاهل فترة warm-up
         if (elapsed < warmupMs) return;
 
-        // Hampel outlier rejection: استبعد > 3σ من المتوسط الحالي
         if (stats.count > 10) {
           const deviation = Math.abs(B - stats.mean);
-          if (deviation > 3 * stats.std) return; // شذوذ، تجاهل
+          if (deviation > 3 * stats.std) return;
         }
 
         stats.add(B);
-        samples.push({ t: elapsed, B });
 
         if (elapsed >= durationMs) {
           clearInterval(ticker);
-
-          // متوسط موزون زمني: الأخير أثقل (استقرار أفضل في النهاية)
-          let weightedSum = 0, weightTotal = 0;
-          const T = samples[samples.length-1]?.t || durationMs;
-          for (const s of samples) {
-            const w = 0.3 + 0.7 * (s.t / T); // وزن يتراوح 0.3 → 1.0
-            weightedSum  += s.B * w;
-            weightTotal  += w;
-          }
-          const weightedMean = weightTotal > 0 ? weightedSum / weightTotal : stats.mean;
-
           resolve({
-            mean:     weightedMean,
-            std:      stats.std,
-            count:    stats.count,
-            quality:  Math.max(0, 1 - stats.std / (weightedMean + 0.001)),
+            mean: stats.mean,
+            std: stats.std,
+            count: stats.count,
+            quality: Math.max(0, 1 - stats.std / (stats.mean + 0.001)),
           });
         }
       }, SENSOR_INTERVAL_MS);
@@ -920,22 +776,17 @@ class CalibrationEngine {
     return r;
   }
 
-  /*
-   * احسب درجة الشذوذ للقراءة الحالية
-   * ΔB = B_measured - B_site_reference
-   * score = |ΔB| / |ΔB_iron_reference|  (مُطبَّع على المرجع)
-   */
   computeAnomaly(B_measured) {
     if (!this.siteDone || !this.ironDone) return null;
     const deltaB  = B_measured - this.siteRef.mean;
     const refDelta = Math.abs(this.ironRef.deltaB) || 1;
-    const score   = clamp(Math.abs(deltaB) / refDelta, 0, 2); // يمكن > 1 للأجسام أقوى
+    const score   = clamp(Math.abs(deltaB) / refDelta, 0, 2);
     return { deltaB, score, quality: this.siteRef.quality };
   }
 }
 
 // ============================================================
-// SCAN ENGINE (point acquisition with buffer)
+// SCAN ENGINE
 // ============================================================
 async function acquirePoint(sensorMgr, durationMs, onTick) {
   sensorMgr.resetFilters();
@@ -943,16 +794,19 @@ async function acquirePoint(sensorMgr, durationMs, onTick) {
     const stats = new WelfordStats();
     const startTime = Date.now();
     const warmup = 2000;
+    let lastTickTime = 0;
 
     const ticker = setInterval(() => {
       const elapsed = Date.now() - startTime;
-      if (onTick) onTick(elapsed / durationMs);
+      if (onTick && Date.now() - lastTickTime > 100) {
+        onTick(elapsed / durationMs);
+        lastTickTime = Date.now();
+      }
 
-      if (elapsed < warmup) return; // warm-up الفلاتر
+      if (elapsed < warmup) return;
 
       const B = sensorMgr.getFilteredBH();
       if (sensorMgr.magOk && B > 0.1) {
-        // Hampel outlier rejection
         if (stats.count > 5 && Math.abs(B - stats.mean) > 3 * (stats.std || 1)) return;
         stats.add(B);
       }
@@ -966,7 +820,7 @@ async function acquirePoint(sensorMgr, durationMs, onTick) {
 }
 
 // ============================================================
-// ANALYSIS ENGINE
+// ANALYSIS ENGINE (محسّن)
 // ============================================================
 class AnalysisEngine {
   analyze(points, stepSize) {
@@ -1035,7 +889,7 @@ class VisEngine {
     const scores=points.map(p=>p.anomaly_score);
     const minV=Math.min(...scores), maxV=Math.max(...scores);
     for (const p of points) grid[p.gy-minY][p.gx-minX]=p.anomaly_score;
-    // IDW interpolation
+    // IDW interpolation محسّن
     for (let r=0;r<rows;r++) for (let c=0;c<cols;c++) {
       if (grid[r][c]!=null) continue;
       let sw=0,sv=0;
@@ -1059,7 +913,6 @@ class VisEngine {
     const ctx=cv.getContext('2d');
     ctx.fillStyle='#0b0f1a'; ctx.fillRect(0,0,cv.width,cv.height);
     const range=g.maxV-g.minV||1;
-    const ptMap=new Map(points.map(p=>[`${p.gx},${p.gy}`,p]));
     for (const p of points) {
       const c=p.gx-g.minX, r=p.gy-g.minY;
       const t=(p.anomaly_score-g.minV)/range;
@@ -1104,9 +957,9 @@ class VisEngine {
       }
     }
     oc.putImageData(id,0,0);
-    ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+    ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='medium';
     ctx.drawImage(os,0,0,cell*g.cols,cell*g.rows);
-    const LEVELS=8;
+    const LEVELS=6;
     for (let lvl=1;lvl<LEVELS;lvl++) {
       const thr=g.minV+(lvl/LEVELS)*range;
       const [ri,gi2,bi]=colorAt((thr-g.minV)/range);
@@ -1178,8 +1031,8 @@ class VisEngine {
     const grad=ctx.createLinearGradient(0,0,W,0);
     for (let i=0;i<=20;i++){const [r,g,b]=colorAt(i/20);grad.addColorStop(i/20,`rgb(${r},${g},${b})`);}
     ctx.fillStyle=grad; ctx.fillRect(0,0,W,20);
-    document.getElementById('csl-min').textContent=fmtNum(minV,3);
-    document.getElementById('csl-max').textContent=fmtNum(maxV,3);
+    document.getElementById('csl-min').textContent=fmtNumShort(minV,3);
+    document.getElementById('csl-max').textContent=fmtNumShort(maxV,3);
   }
 
   showCanvas(view) {
@@ -1196,8 +1049,8 @@ class VisEngine {
     const r=Math.floor((e.clientY-rect.top)/cell);
     const pt=points.find(p=>p.gx===(g.minX+c)&&p.gy===(g.minY+r));
     if (pt) {
-      const depth=pt.depth_m?`${fmtNum(pt.depth_m,2)}م`:'—';
-      showToast(`📍 (${pt.gx},${pt.gy}): ΔB=${fmtNum(pt.deltaB)} µT  العمق≈${depth}`);
+      const depth=pt.depth_m?`${fmtNumShort(pt.depth_m,2)}م`:'—';
+      showToast(`📍 (${pt.gx},${pt.gy}): ΔB=${fmtNumShort(pt.deltaB,3)} µT  العمق≈${depth}`);
     }
   }
 }
@@ -1252,22 +1105,26 @@ function showModal(title,body,onOk,showCancel=false) {
 }
 
 // ============================================================
-// LIVE DISPLAY UPDATE
+// LIVE DISPLAY UPDATE (مع 4 منازل عشرية)
 // ============================================================
-function updateDisplay() {
-  if (!sensors.magOk) return;
-  const ned = sensors.B_NED;
-  const BH  = sensors.B_H;
-  const std = sensors.noiseStd;
+let lastDisplayUpdate = 0;
 
-  document.getElementById('val-bn').textContent    = fmtNum(ned.bn);
-  document.getElementById('val-be').textContent    = fmtNum(ned.be);
-  document.getElementById('val-bu').textContent    = fmtNum(ned.bd);
-  document.getElementById('val-bh').textContent    = fmtNum(BH);
-  document.getElementById('val-sigma').textContent = fmtNum(std,3);
+function updateDisplay() {
+  const now = Date.now();
+  if (now - lastDisplayUpdate < DISPLAY_UPDATE_INTERVAL_MS) return;
+  lastDisplayUpdate = now;
+  
+  if (!sensors.magOk) return;
+  
+  // استخدام القيم المخزنة مؤقتاً
+  document.getElementById('val-bn').textContent    = fmtNum(sensors.lastDisplayBN);
+  document.getElementById('val-be').textContent    = fmtNum(sensors.lastDisplayBE);
+  document.getElementById('val-bu').textContent    = fmtNum(sensors.lastDisplayBD);
+  document.getElementById('val-bh').textContent    = fmtNum(sensors.lastDisplayBH);
+  document.getElementById('val-sigma').textContent = fmtNum(sensors.lastDisplayStd);
 
   if (calEng.siteDone && calEng.ironDone) {
-    const anom = calEng.computeAnomaly(BH);
+    const anom = calEng.computeAnomaly(sensors.lastDisplayBH);
     if (anom) {
       document.getElementById('val-db').textContent = fmtNum(anom.deltaB);
       document.getElementById('val-db').style.color =
@@ -1275,16 +1132,16 @@ function updateDisplay() {
         Math.abs(anom.deltaB) > Math.abs(calEng.ironRef.deltaB) * 0.2 ? 'var(--warn)' : 'var(--green-ok)';
     }
   } else if (calEng.siteDone) {
-    document.getElementById('val-db').textContent = fmtNum(BH - calEng.siteRef.mean);
+    document.getElementById('val-db').textContent = fmtNum(sensors.lastDisplayBH - calEng.siteRef.mean);
   }
 
-  // SNR bar: نسبة σ/|B| (كلما أصغر كلما كان الإشارة أفضل)
+  // SNR bar
   const stab = sensors.getStabilityRatio();
-  const snrPct = Math.max(0, 1 - stab * 20); // 0%→خام, 100%→مستقر تماماً
+  const snrPct = Math.max(0, 1 - stab * 20);
   const fill = document.getElementById('snr-fill');
   fill.style.width = (snrPct*100).toFixed(0)+'%';
   fill.style.background = snrPct>0.8 ? 'var(--green-ok)' : snrPct>0.5 ? 'var(--accent)' : snrPct>0.3 ? 'var(--warn)' : 'var(--danger)';
-  document.getElementById('snr-val').textContent = `σ=${fmtNum(std,3)} µT`;
+  document.getElementById('snr-val').textContent = `σ=${fmtNum(sensors.lastDisplayStd,3)} µT`;
   document.getElementById('snr-status').textContent = snrPct>0.8 ? '✓ مستقر' : snrPct>0.5 ? '~ جيد' : '⚠ ضجيج';
 
   const led = document.getElementById('stab-led');
@@ -1293,13 +1150,12 @@ function updateDisplay() {
   else if (snrPct>0.5) { led.className='stability-led ok'; txt.textContent='إشارة مقبولة — تجنب الحركة'; }
   else { led.className='stability-led bad'; txt.textContent='ضجيج عالٍ — ثبّت الجهاز'; }
 
-  // Status badges
   const bs=document.getElementById('badge-sensors');
-  bs.textContent = sensors.magOk ? (ned.valid ? 'MAG NED ✓' : 'MAG (fb)') : 'NO MAG';
+  bs.textContent = sensors.magOk ? (sensors.B_NED.valid ? 'MAG NED ✓' : 'MAG (fb)') : 'NO MAG';
   bs.className   = sensors.magOk ? 'badge ok' : 'badge error';
 
-  document.getElementById('badge-noise').textContent = `σ=${fmtNum(std,3)}µT`;
-  document.getElementById('badge-noise').className   = std<0.1?'badge ok':std<0.5?'badge warn':'badge error';
+  document.getElementById('badge-noise').textContent = `σ=${fmtNum(sensors.lastDisplayStd,3)}µT`;
+  document.getElementById('badge-noise').className   = sensors.lastDisplayStd<0.1?'badge ok':sensors.lastDisplayStd<0.5?'badge warn':'badge error';
 
   const bc=document.getElementById('badge-cal');
   if (calEng.siteDone&&calEng.ironDone) { bc.textContent='CAL OK'; bc.className='badge ok'; }
@@ -1341,7 +1197,7 @@ async function moveTo(dx, dy) {
   if (!scanActive || scanPointTimer) return;
   currentPos.x+=dx; currentPos.y+=dy;
   document.getElementById('pos-info').innerHTML=
-    `الموقع: <strong>${currentPos.x}, ${currentPos.y}</strong> | ${(currentPos.x*stepSize).toFixed(2)}م, ${(currentPos.y*stepSize).toFixed(2)}م`;
+    `الموقع: <strong>${currentPos.x}, ${currentPos.y}</strong> | ${fmtNumShort(currentPos.x*stepSize,2)}م, ${fmtNumShort(currentPos.y*stepSize,2)}م`;
 
   log(`الانتقال إلى (${currentPos.x},${currentPos.y}) — القياس 10s…`);
 
@@ -1352,7 +1208,6 @@ async function moveTo(dx, dy) {
   measLbl.classList.add('visible');
   setDpadEnabled(false);
 
-  // ذاكرة وهمية لتعطيل الأزرار أثناء القياس
   scanPointTimer = true;
 
   const result = await acquirePoint(sensors, POINT_DURATION_MS, (pct) => {
@@ -1382,7 +1237,7 @@ async function moveTo(dx, dy) {
   DataStore.save(scanPoints);
 
   const qual = result.std < 0.1 ? '✓' : result.std < 0.5 ? '~' : '!';
-  log(`(${pt.gx},${pt.gy}): |B|=${fmtNum(result.mean)} ΔB=${fmtNum(deltaB)} score=${fmtNum(score,3)} σ=${fmtNum(result.std,3)} ${qual}`,
+  log(`(${pt.gx},${pt.gy}): |B|=${fmtNumShort(result.mean,3)} ΔB=${fmtNumShort(deltaB,3)} score=${fmtNumShort(score,3)} σ=${fmtNumShort(result.std,3)} ${qual}`,
       score>0.6?'error':score>0.3?'warn':'ok');
 
   renderCurrentView();
@@ -1393,7 +1248,6 @@ async function moveTo(dx, dy) {
 }
 
 function estimateDepth(deltaB) {
-  // Point-dipole half-width approximation
   const a = Math.abs(deltaB);
   if (a < 0.1) return null;
   return clamp(1.8 / (Math.pow(a, 0.33) + 0.15), 0.2, 10);
@@ -1417,7 +1271,7 @@ function showOverlayInfo() {
   document.getElementById('oi-pts').textContent=scanPoints.length;
   const xs=scanPoints.map(p=>p.gx), ys=scanPoints.map(p=>p.gy);
   document.getElementById('oi-grid').textContent=`${Math.max(...xs)-Math.min(...xs)+1}×${Math.max(...ys)-Math.min(...ys)+1}`;
-  document.getElementById('oi-dbmax').textContent=fmtNum(Math.max(...scanPoints.map(p=>Math.abs(p.deltaB))));
+  document.getElementById('oi-dbmax').textContent=fmtNumShort(Math.max(...scanPoints.map(p=>Math.abs(p.deltaB))),3);
   document.getElementById('oi-step').textContent=stepSize;
 }
 
@@ -1460,7 +1314,7 @@ function exportPNG() {
 function exportCSV() {
   if (!scanPoints.length) return;
   const hdr='grid_x,grid_y,x_m,y_m,B_H_uT,deltaB_uT,anomaly_score,std_uT,count,timestamp\n';
-  const rows=scanPoints.map(p=>`${p.gx},${p.gy},${(p.gx*stepSize).toFixed(3)},${(p.gy*stepSize).toFixed(3)},${fmtNum(p.magnitude)},${fmtNum(p.deltaB)},${fmtNum(p.anomaly_score,4)},${fmtNum(p.std,4)},${p.count||0},${p.timestamp}`).join('\n');
+  const rows=scanPoints.map(p=>`${p.gx},${p.gy},${fmtNumShort(p.gx*stepSize,3)},${fmtNumShort(p.gy*stepSize,3)},${fmtNumShort(p.magnitude,4)},${fmtNumShort(p.deltaB,4)},${fmtNumShort(p.anomaly_score,4)},${fmtNumShort(p.std,4)},${p.count||0},${p.timestamp}`).join('\n');
   const blob=new Blob([hdr+rows],{type:'text/csv'});
   const link=document.createElement('a');
   link.download=`magscan_${Date.now()}.csv`; link.href=URL.createObjectURL(blob); link.click();
@@ -1483,14 +1337,14 @@ function setupCalUI() {
       const r = await calEng.calibrateSite((p)=>{
         document.getElementById('prog-site').style.width=(p*100)+'%';
         document.getElementById('prog-site-label').textContent=
-          `${Math.round(p*60)}s/60s | B_H=${fmtNum(sensors.B_H)} µT | σ=${fmtNum(sensors.noiseStd,3)} µT`;
+          `${Math.round(p*60)}s/60s | B_H=${fmtNumShort(sensors.lastDisplayBH,3)} µT | σ=${fmtNumShort(sensors.lastDisplayStd,3)} µT`;
       });
       document.getElementById('dot-site').className='dot done';
       document.getElementById('site-result').textContent=
-        `B_ref=${fmtNum(r.mean)} µT  σ=${fmtNum(r.std,3)} µT  جودة=${(r.quality*100).toFixed(0)}%`;
+        `B_ref=${fmtNumShort(r.mean,3)} µT  σ=${fmtNumShort(r.std,3)} µT  جودة=${(r.quality*100).toFixed(0)}%`;
       btn.textContent='✓ اكتملت معايرة الموقع';
       document.getElementById('btn-iron-cal').disabled=false;
-      log(`معايرة الموقع اكتملت — B_ref=${fmtNum(r.mean)} µT  σ=${fmtNum(r.std,3)}`, 'ok');
+      log(`معايرة الموقع اكتملت — B_ref=${fmtNumShort(r.mean,3)} µT  σ=${fmtNumShort(r.std,3)}`, 'ok');
       updateButtonStates();
     } catch(e) {
       document.getElementById('dot-site').className='dot error';
@@ -1513,13 +1367,13 @@ function setupCalUI() {
           const r = await calEng.calibrateIron((p)=>{
             document.getElementById('prog-iron').style.width=(p*100)+'%';
             document.getElementById('prog-iron-label').textContent=
-              `${Math.round(p*60)}s/60s | B=${fmtNum(sensors.B_H)} µT | σ=${fmtNum(sensors.noiseStd,3)} µT`;
+              `${Math.round(p*60)}s/60s | B=${fmtNumShort(sensors.lastDisplayBH,3)} µT | σ=${fmtNumShort(sensors.lastDisplayStd,3)} µT`;
           });
           document.getElementById('dot-iron').className='dot done';
           document.getElementById('iron-result').textContent=
-            `B_iron=${fmtNum(r.mean)} µT  ΔB=${fmtNum(r.deltaB)} µT  σ=${fmtNum(r.std,3)}`;
+            `B_iron=${fmtNumShort(r.mean,3)} µT  ΔB=${fmtNumShort(r.deltaB,3)} µT  σ=${fmtNumShort(r.std,3)}`;
           btn.textContent='✓ اكتملت معايرة الحديد';
-          log(`معايرة الحديد اكتملت — ΔB_ref=${fmtNum(r.deltaB)} µT`, 'ok');
+          log(`معايرة الحديد اكتملت — ΔB_ref=${fmtNumShort(r.deltaB,3)} µT`, 'ok');
           updateButtonStates();
           showToast('✅ جميع المعايرات اكتملت — المسح متاح!');
         } catch(e) {
@@ -1592,10 +1446,9 @@ function setupSensorPermUI() {
 document.addEventListener('DOMContentLoaded', async () => {
   sensors.onUpdate = updateDisplay;
   await sensors.start();
-  log('MagScan Pro v3 جاهز — محرك مستشعر صحيح (B_NED + Welford + Butterworth)', 'ok');
-  log('استخدام: Generic Sensor API → B(x,y,z) الحقيقي في إطار الجهاز', 'ok');
+  log('MagScan Pro v3 جاهز — 4 منازل عشرية — أداء محسّن', 'ok');
 
-  setInterval(updateDisplay, 250);
+  setInterval(updateDisplay, DISPLAY_UPDATE_INTERVAL_MS);
 
   setupCalUI();
   setupSensorPermUI();
@@ -1665,13 +1518,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, true);
   };
 
-  // استعادة البيانات المحفوظة
   if (scanPoints.length) {
     log(`استعادة ${scanPoints.length} نقطة محفوظة.`, 'ok');
     renderCurrentView(); showOverlayInfo();
   }
 
-  // أزرار لوحة المفاتيح (سطح المكتب)
   document.addEventListener('keydown', (e) => {
     if (!scanActive) return;
     if (e.key==='ArrowUp')    moveTo( 0,-1);
