@@ -677,7 +677,7 @@ canvas {
       <line x1="22" y1="14" x2="26" y2="14" stroke="#00c9a7" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
     <div>
-      <h1>MAGSCAN PRO8</h1>
+      <h1>MAGSCAN PRO9</h1>
       <span class="subtitle">نظام رسم الشذوذ المغناطيسي v2.0</span>
     </div>
   </div>
@@ -1203,25 +1203,51 @@ class SensorManager {
       try { await DeviceMotionEvent.requestPermission(); } catch(e) {}
     }
 
-    // Magnetometer via DeviceOrientationEvent absolute
-    this._magHandler = (e) => {
-      if (e.alpha != null) {
-        // ✓ استخدم alpha, beta, gamma مباشرة (هذه هي البيانات المتاحة)
-        // تصحيح: استخدم فقط bx, by = المكون الأفقي (مستقل عن الميل)
-        // هذا يقلل التأثر بحركة الجهاز
-        this.bx = e.alpha || 0;      // heading (الشمال)
-        this.by = e.beta  || 0;      // pitch (الميل للأمام/الخلف)
-        this.bz = e.gamma || 0;      // roll (الميل الجانبي)
-        this.magOk = true;
-        if (this.onUpdate) this.onUpdate();
+    // Magnetometer API - البيانات المغناطيسية الحقيقية (µT)
+    let magnetometerStarted = false;
+    if (typeof Magnetometer !== 'undefined') {
+      try {
+        const mag = new Magnetometer({ frequency: 20 });
+        this._magHandler = () => {
+          this.bx = mag.x || 0;
+          this.by = mag.y || 0;
+          this.bz = mag.z || 0;
+          this.magOk = true;
+          if (this.onUpdate) this.onUpdate();
+        };
+        mag.addEventListener('reading', this._magHandler);
+        mag.addEventListener('error', (e) => {
+          console.warn('Magnetometer error:', e);
+          this.magOk = false;
+        });
+        mag.start();
+        magnetometerStarted = true;
+        log('✓ Magnetometer API قيد التشغيل', 'ok');
+      } catch(e) {
+        console.warn('Magnetometer not available:', e);
       }
-    };
+    }
 
-    // استخدم DeviceOrientation مباشرة - هذا هو المتاح على معظم الأجهزة
-    // لا تحاول Magnetometer API لأنها تحتاج permissions معقدة
-    window.addEventListener('deviceorientationabsolute', this._magHandler, true);
-    window.addEventListener('deviceorientation', this._magHandler, true);
-    log('Magnetometer ready', 'ok');
+    // إذا فشل Magnetometer، حاول DeviceOrientationEvent (fallback)
+    if (!magnetometerStarted) {
+      this._magHandler = (e) => {
+        // ⚠️ هذا fallback فقط - يعطي زوايا وليس قراءات مغناطيسية حقيقية
+        // alpha = heading (0-360°), beta = pitch, gamma = roll
+        // استخدم الحقول الموثوقة فقط
+        if (e.alpha != null) {
+          // تحويل الزوايا إلى نطاق قراءات مغناطيسية تقريبية (25-50 µT)
+          const k = 0.15; // معامل تحويل
+          this.bx = Math.cos(e.alpha * Math.PI / 180) * 25;
+          this.by = Math.sin(e.alpha * Math.PI / 180) * 25;
+          this.bz = e.beta * k;
+          this.magOk = true;
+          if (this.onUpdate) this.onUpdate();
+        }
+      };
+      window.addEventListener('deviceorientationabsolute', this._magHandler, true);
+      window.addEventListener('deviceorientation', this._magHandler, true);
+      log('⚠️ استخدام DeviceOrientation (fallback)', 'warn');
+    }
 
     // Accelerometer
     if (typeof Accelerometer !== 'undefined') {
@@ -1279,9 +1305,6 @@ class SensorManager {
   /**
    * احصل على شدة المجال الخام (للمقارنة)
    */
-  getRawMag() {
-    return magnitude(this.bx, this.by, this.bz);
-  }
 }
 
 // ================================================================
