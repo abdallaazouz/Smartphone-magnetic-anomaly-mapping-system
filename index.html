@@ -675,7 +675,7 @@ canvas {
       <line x1="22" y1="14" x2="26" y2="14" stroke="#00c9a7" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
     <div>
-      <h1>MAGSCAN PROف</h1>
+      <h1>MAGSCAN PROف4</h1>
       <span class="subtitle">نظام رسم الشذوذ المغناطيسي v4.0 - TMI</span>
     </div>
   </div>
@@ -1394,7 +1394,7 @@ class AnalysisEngine {
 }
 
 // ================================================================
-// VISUALIZATION ENGINE (بدون تغيير - محفوظ بالكامل)
+// VISUALIZATION ENGINE (تعديل جرافيكي فقط على Heatmap)
 // ================================================================
 class VisualizationEngine {
   constructor() {
@@ -1403,6 +1403,7 @@ class VisualizationEngine {
     this.canvasSurface  = document.getElementById('canvas-surface3d');
     this.canvasColorbar = document.getElementById('colorscale-bar');
     this.lastHeatmapData = null;
+    this.selectedCell = null; // لتحديد المربع المختار
     this.setupHeatmapClick();
   }
 
@@ -1420,14 +1421,22 @@ class VisualizationEngine {
       const r = Math.floor(y / cell);
       
       if (c >= 0 && c < cols && r >= 0 && r < rows) {
+        this.selectedCell = { col: c, row: r };
+        
         const point = this.lastHeatmapData.points.find(
           p => p.gx === (this.lastHeatmapData.minX + c) && 
                p.gy === (this.lastHeatmapData.minY + r)
         );
+        
         if (point) {
           const depth = point.depth_m ? `${fmtNum(point.depth_m, 2)}م` : 'غير محسوب';
-          showToast(`📍 الموقع (${point.gx},${point.gy}): العمق = ${depth}`);
+          showToast(`📍 تم تحديد المربع (${point.gx}, ${point.gy}) — العمق = ${depth} | ابدأ القياس من الشمال للجنوب`);
+        } else {
+          showToast(`📍 تم تحديد المربع الشبكي (${this.lastHeatmapData.minX + c}, ${this.lastHeatmapData.minY + r}) — قياس من الشمال → الجنوب`);
         }
+        
+        // إعادة رسم الهيت ماب لإظهار التحديد
+        this.renderHeatmap(this.lastHeatmapData.points, this.lastHeatmapData.stepSize || 0.25);
       }
     });
   }
@@ -1487,7 +1496,7 @@ class VisualizationEngine {
     canvas.height = cell * g.rows + 40;
     
     if (!opts.targetCanvas) {
-      this.lastHeatmapData = { points, cell, cols: g.cols, rows: g.rows, minX: g.minX, minY: g.minY };
+      this.lastHeatmapData = { points, cell, cols: g.cols, rows: g.rows, minX: g.minX, minY: g.minY, stepSize };
     }
     
     const ctx = canvas.getContext('2d');
@@ -1498,6 +1507,7 @@ class VisualizationEngine {
     
     const pointMap = new Map(points.map(p => [`${p.gx},${p.gy}`, p]));
 
+    // رسم الخلايا الملونة (الجزء الأساسي)
     for (const p of points) {
       const c = p.gx - g.minX;
       const r = p.gy - g.minY;
@@ -1508,6 +1518,7 @@ class VisualizationEngine {
       ctx.fillRect(c * cell, r * cell, cell, cell);
     }
 
+    // شبكة خفيفة
     ctx.strokeStyle = 'rgba(255,255,255,0.06)';
     ctx.lineWidth = 0.5;
     for (let c = 0; c <= g.cols; c++) {
@@ -1517,6 +1528,7 @@ class VisualizationEngine {
       ctx.beginPath(); ctx.moveTo(0, r*cell); ctx.lineTo(g.cols*cell, r*cell); ctx.stroke();
     }
 
+    // نقاط القياس
     for (const p of points) {
       const c = p.gx - g.minX;
       const r = p.gy - g.minY;
@@ -1526,6 +1538,41 @@ class VisualizationEngine {
       ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fill();
     }
 
+    // === تعديل جرافيكي فقط: تحديد المربع المختار + مسار اقتراحي شمال→جنوب ===
+    if (this.selectedCell) {
+      const sc = this.selectedCell.col;
+      const sr = this.selectedCell.row;
+      
+      // تحديد المربع المختار بإطار بارز
+      ctx.strokeStyle = '#00ffaa';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#00ffaa';
+      ctx.shadowBlur = 8;
+      ctx.strokeRect(sc * cell + 2, sr * cell + 2, cell - 4, cell - 4);
+      ctx.shadowBlur = 0;
+      
+      // رسم أسهم توجيهية للقياس من الشمال إلى الجنوب (صفوف)
+      ctx.strokeStyle = 'rgba(0, 201, 167, 0.7)';
+      ctx.lineWidth = 1.5;
+      for (let row = 0; row < g.rows; row++) {
+        const startX = 8;
+        const endX = g.cols * cell - 8;
+        const y = row * cell + cell / 2;
+        ctx.beginPath();
+        ctx.moveTo(startX, y);
+        ctx.lineTo(endX, y);
+        ctx.stroke();
+        
+        // رأس السهم في نهاية الصف (جنوب)
+        ctx.beginPath();
+        ctx.moveTo(endX - 8, y - 5);
+        ctx.lineTo(endX, y);
+        ctx.lineTo(endX - 8, y + 5);
+        ctx.stroke();
+      }
+    }
+
+    // تسميات المحاور
     ctx.fillStyle = '#4a6278'; ctx.font = '9px monospace';
     for (let c = 0; c < g.cols; c++) {
       ctx.fillText((g.minX + c) * stepSize + 'm', c*cell+2, g.rows*cell+14);
@@ -2085,7 +2132,7 @@ function setupCalibrationUI() {
 }
 
 // ================================================================
-// SCAN ENGINE (باستخدام TMI)
+// SCAN ENGINE (بدون تغيير)
 // ================================================================
 let scanPointTimer = null;
 let scanBuffer     = [];
@@ -2120,7 +2167,6 @@ function setDpadEnabled(en) {
 }
 
 function estimatePointDepth(deltaB, score, refDelta = 1) {
-  // دالة تقدير العمق الأصلية محفوظة بالكامل
   const absDelta = Math.abs(deltaB);
   if (absDelta < 0.1) return null;
   const normDelta = absDelta / Math.abs(refDelta);
