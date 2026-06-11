@@ -97,8 +97,17 @@ header .status-bar { margin-left: auto; display: flex; align-items: center; gap:
 .readings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 4px; }
 .reading-item { background: var(--bg-base); border: 1px solid var(--border); border-radius: 4px; padding: 5px 7px; }
 .reading-item .label { font-size: 9px; color: var(--text-dim); font-family: var(--font-mono); letter-spacing: 0.08em; }
-.reading-item .value { font-size: 13px; font-family: var(--font-mono); color: var(--accent); font-weight: 700; }
-.reading-item .unit { font-size: 9px; color: var(--text-secondary); margin-left: 2px; }
+.reading-item .value { 
+  font-size: 13px; 
+  font-family: var(--font-mono); 
+  color: var(--accent); 
+  font-weight: 700;
+  direction: ltr;
+  text-align: left;
+  display: inline-block;
+  width: 100%;
+}
+.reading-item .unit { font-size: 9px; color: var(--text-secondary); margin-right: 2px; }
 
 /* Stability indicator */
 .stability-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
@@ -183,7 +192,7 @@ canvas { display: block; max-width: 100%; max-height: 100%; }
       <line x1="22" y1="14" x2="26" y2="14" stroke="#00c9a7" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
     <div>
-      <h1>MAGSCAN PRO v4</h1>
+      <h1>MAGSCAN PRO v5</h1>
       <span class="subtitle">محرك مستشعر صحيح — مستقل عن الاتجاه</span>
     </div>
   </div>
@@ -396,30 +405,40 @@ canvas { display: block; max-width: 100%; max-height: 100%; }
 <script>
 'use strict';
 
-/*
- * ============================================================
- * MAGSCAN PRO v3 — تحسينات الأداء وتنسيق الأرقام (4 منازل عشرية)
- * ============================================================
- */
+// ============================================================
+// دالة ثابتة لتنسيق الأرقام - 4 منازل عشرية فقط
+// ============================================================
+function formatNumber(value, decimals = 4) {
+  if (value === null || value === undefined || isNaN(value) || !isFinite(value)) {
+    return '—';
+  }
+  // التقريب إلى 4 منازل عشرية بالضبط
+  return value.toFixed(decimals);
+}
+
+function formatNumberShort(value, decimals = 2) {
+  if (value === null || value === undefined || isNaN(value) || !isFinite(value)) {
+    return '—';
+  }
+  return value.toFixed(decimals);
+}
 
 // ============================================================
 // CONSTANTS
 // ============================================================
 const CAL_DURATION_MS   = 60_000;
 const POINT_DURATION_MS = 10_000;
-const SENSOR_HZ         = 30;          // تم التخفيض من 50 إلى 30 هرتز لتقليل الحمل
+const SENSOR_HZ         = 30;
 const SENSOR_INTERVAL_MS = 1000 / SENSOR_HZ;
-const DISPLAY_UPDATE_INTERVAL_MS = 200; // تحديث الشاشة كل 200 مللي ثانية فقط
+const DISPLAY_UPDATE_INTERVAL_MS = 150;
 
-// Butterworth 4th-order lowpass coefficients (محسّن للأداء)
+// Butterworth coefficients
 const BW_B = [0.00000028, 0.00000112, 0.00000168, 0.00000112, 0.00000028];
 const BW_A = [1, -3.8744, 5.6326, -3.6465, 0.8883];
 
-// Kalman parameters
 const K_Q = 0.0001;
 const K_R = 0.05;
 
-// COLORMAP
 const COLORMAP = [
   [0.0,  [41,  182, 246]],
   [0.4,  [0,   230, 170]],
@@ -433,14 +452,6 @@ const COLORMAP = [
 // ============================================================
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function mag3(x, y, z) { return Math.sqrt(x*x + y*y + z*z); }
-function fmtNum(n, dec=4) { 
-  if (n == null || isNaN(n) || !isFinite(n)) return '—'; 
-  return n.toFixed(dec); 
-}
-function fmtNumShort(n, dec=2) {
-  if (n == null || isNaN(n) || !isFinite(n)) return '—';
-  return n.toFixed(dec);
-}
 
 function colorAt(t) {
   t = clamp(t, 0, 1);
@@ -490,7 +501,7 @@ function deviceToNED(bx, by, bz, ax, ay, az) {
 }
 
 // ============================================================
-// BUTTERWORTH FILTER (محسّن للأداء)
+// FILTERS
 // ============================================================
 class ButterworthFilter {
   constructor() {
@@ -508,9 +519,6 @@ class ButterworthFilter {
   reset() { this.x.fill(0); this.y.fill(0); }
 }
 
-// ============================================================
-// KALMAN FILTER
-// ============================================================
 class KalmanFilter1D {
   constructor(Q=K_Q, R=K_R) {
     this.Q = Q; this.R = R;
@@ -527,9 +535,6 @@ class KalmanFilter1D {
   reset() { this.x = null; this.P = 10; }
 }
 
-// ============================================================
-// WELFORD ONLINE VARIANCE
-// ============================================================
 class WelfordStats {
   constructor() { this.reset(); }
   reset() { this.n=0; this.mean=0; this.M2=0; }
@@ -546,7 +551,7 @@ class WelfordStats {
 }
 
 // ============================================================
-// SENSOR MANAGER (محسّن للأداء مع تخزين مؤقت)
+// SENSOR MANAGER
 // ============================================================
 class SensorManager {
   constructor() {
@@ -566,12 +571,12 @@ class SensorManager {
     this._magSensor = null;
     this._accSensor = null;
     this._sampleCount = 0;
-    // تخزين مؤقت لعرض البيانات
-    this.lastDisplayBH = 0;
-    this.lastDisplayBN = 0;
-    this.lastDisplayBE = 0;
-    this.lastDisplayBD = 0;
-    this.lastDisplayStd = 0;
+    // تخزين القيم المنسقة
+    this.displayBN = 0;
+    this.displayBE = 0;
+    this.displayBD = 0;
+    this.displayBH = 0;
+    this.displayStd = 0;
   }
 
   async start() {
@@ -593,7 +598,7 @@ class SensorManager {
         this._accSensor.start();
         log('Accelerometer API نشط', 'ok');
       } catch(e) {
-        log('Accelerometer API فشل، استخدام DeviceMotion', 'warn');
+        log('Accelerometer API فشل', 'warn');
       }
     }
     window.addEventListener('devicemotion', (e) => {
@@ -616,12 +621,12 @@ class SensorManager {
           this._processMagSample();
         });
         this._magSensor.addEventListener('error', (e) => {
-          log('Magnetometer API خطأ: ' + e.error.message, 'warn');
+          log('Magnetometer API خطأ', 'warn');
           this._fallbackToOrientation();
         });
         this._magSensor.start();
         usedGenericMag = true;
-        log('Magnetometer API (Generic Sensor) نشط', 'ok');
+        log('Magnetometer API نشط', 'ok');
       } catch(e) {
         log('Generic Sensor API غير متاح', 'warn');
       }
@@ -682,12 +687,12 @@ class SensorManager {
     }
     this.noiseStd = this.welford.std;
 
-    // تخزين قيم العرض
-    this.lastDisplayBN = this.B_NED.bn;
-    this.lastDisplayBE = this.B_NED.be;
-    this.lastDisplayBD = this.B_NED.bd;
-    this.lastDisplayBH = this.B_H;
-    this.lastDisplayStd = this.noiseStd;
+    // تخزين القيم للعرض (بدون تنسيق هنا)
+    this.displayBN = this.B_NED.bn;
+    this.displayBE = this.B_NED.be;
+    this.displayBD = this.B_NED.bd;
+    this.displayBH = this.B_H;
+    this.displayStd = this.noiseStd;
 
     if (this.onUpdate) this.onUpdate();
   }
@@ -820,7 +825,7 @@ async function acquirePoint(sensorMgr, durationMs, onTick) {
 }
 
 // ============================================================
-// ANALYSIS ENGINE (محسّن)
+// ANALYSIS ENGINE
 // ============================================================
 class AnalysisEngine {
   analyze(points, stepSize) {
@@ -854,11 +859,15 @@ class AnalysisEngine {
 
     const peak = points.reduce((b,p)=>p.anomaly_score>(b?.anomaly_score??-1)?p:b,null);
     return {
-      totalPoints: points.length, maxScore: maxScore.toFixed(3),
-      meanScore: meanScore.toFixed(3), maxDeltaB: maxDB.toFixed(2),
-      anomalyCount: anomPts.length, area: (anomPts.length*stepSize*stepSize).toFixed(2),
-      estDepth: estDepth ? estDepth.toFixed(2) : '—',
-      halfWidth: halfWidth.toFixed(2), snr: snr.toFixed(1),
+      totalPoints: points.length,
+      maxScore: formatNumberShort(maxScore, 3),
+      meanScore: formatNumberShort(meanScore, 3),
+      maxDeltaB: formatNumberShort(maxDB, 2),
+      anomalyCount: anomPts.length,
+      area: formatNumberShort(anomPts.length*stepSize*stepSize, 2),
+      estDepth: estDepth ? formatNumberShort(estDepth, 2) : '—',
+      halfWidth: formatNumberShort(halfWidth, 2),
+      snr: formatNumberShort(snr, 1),
       confidence: (confidence*100).toFixed(0),
       peakAt: peak ? `(${peak.gx},${peak.gy})` : '—',
     };
@@ -889,7 +898,6 @@ class VisEngine {
     const scores=points.map(p=>p.anomaly_score);
     const minV=Math.min(...scores), maxV=Math.max(...scores);
     for (const p of points) grid[p.gy-minY][p.gx-minX]=p.anomaly_score;
-    // IDW interpolation محسّن
     for (let r=0;r<rows;r++) for (let c=0;c<cols;c++) {
       if (grid[r][c]!=null) continue;
       let sw=0,sv=0;
@@ -959,7 +967,7 @@ class VisEngine {
     oc.putImageData(id,0,0);
     ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='medium';
     ctx.drawImage(os,0,0,cell*g.cols,cell*g.rows);
-    const LEVELS=6;
+    const LEVELS=5;
     for (let lvl=1;lvl<LEVELS;lvl++) {
       const thr=g.minV+(lvl/LEVELS)*range;
       const [ri,gi2,bi]=colorAt((thr-g.minV)/range);
@@ -1031,8 +1039,8 @@ class VisEngine {
     const grad=ctx.createLinearGradient(0,0,W,0);
     for (let i=0;i<=20;i++){const [r,g,b]=colorAt(i/20);grad.addColorStop(i/20,`rgb(${r},${g},${b})`);}
     ctx.fillStyle=grad; ctx.fillRect(0,0,W,20);
-    document.getElementById('csl-min').textContent=fmtNumShort(minV,3);
-    document.getElementById('csl-max').textContent=fmtNumShort(maxV,3);
+    document.getElementById('csl-min').textContent = formatNumberShort(minV, 3);
+    document.getElementById('csl-max').textContent = formatNumberShort(maxV, 3);
   }
 
   showCanvas(view) {
@@ -1049,8 +1057,8 @@ class VisEngine {
     const r=Math.floor((e.clientY-rect.top)/cell);
     const pt=points.find(p=>p.gx===(g.minX+c)&&p.gy===(g.minY+r));
     if (pt) {
-      const depth=pt.depth_m?`${fmtNumShort(pt.depth_m,2)}م`:'—';
-      showToast(`📍 (${pt.gx},${pt.gy}): ΔB=${fmtNumShort(pt.deltaB,3)} µT  العمق≈${depth}`);
+      const depth=pt.depth_m ? formatNumberShort(pt.depth_m, 2) + 'م' : '—';
+      showToast(`📍 (${pt.gx},${pt.gy}): ΔB=${formatNumberShort(pt.deltaB, 3)} µT  العمق≈${depth}`);
     }
   }
 }
@@ -1105,7 +1113,7 @@ function showModal(title,body,onOk,showCancel=false) {
 }
 
 // ============================================================
-// LIVE DISPLAY UPDATE (مع 4 منازل عشرية)
+// LIVE DISPLAY UPDATE - عرض 4 منازل عشرية فقط
 // ============================================================
 let lastDisplayUpdate = 0;
 
@@ -1116,23 +1124,23 @@ function updateDisplay() {
   
   if (!sensors.magOk) return;
   
-  // استخدام القيم المخزنة مؤقتاً
-  document.getElementById('val-bn').textContent    = fmtNum(sensors.lastDisplayBN);
-  document.getElementById('val-be').textContent    = fmtNum(sensors.lastDisplayBE);
-  document.getElementById('val-bu').textContent    = fmtNum(sensors.lastDisplayBD);
-  document.getElementById('val-bh').textContent    = fmtNum(sensors.lastDisplayBH);
-  document.getElementById('val-sigma').textContent = fmtNum(sensors.lastDisplayStd);
+  // عرض القيم بـ 4 منازل عشرية بالضبط
+  document.getElementById('val-bn').textContent = formatNumber(sensors.displayBN, 4);
+  document.getElementById('val-be').textContent = formatNumber(sensors.displayBE, 4);
+  document.getElementById('val-bu').textContent = formatNumber(sensors.displayBD, 4);
+  document.getElementById('val-bh').textContent = formatNumber(sensors.displayBH, 4);
+  document.getElementById('val-sigma').textContent = formatNumber(sensors.displayStd, 4);
 
   if (calEng.siteDone && calEng.ironDone) {
-    const anom = calEng.computeAnomaly(sensors.lastDisplayBH);
+    const anom = calEng.computeAnomaly(sensors.displayBH);
     if (anom) {
-      document.getElementById('val-db').textContent = fmtNum(anom.deltaB);
+      document.getElementById('val-db').textContent = formatNumber(anom.deltaB, 4);
       document.getElementById('val-db').style.color =
         Math.abs(anom.deltaB) > Math.abs(calEng.ironRef.deltaB) * 0.5 ? 'var(--danger)' :
         Math.abs(anom.deltaB) > Math.abs(calEng.ironRef.deltaB) * 0.2 ? 'var(--warn)' : 'var(--green-ok)';
     }
   } else if (calEng.siteDone) {
-    document.getElementById('val-db').textContent = fmtNum(sensors.lastDisplayBH - calEng.siteRef.mean);
+    document.getElementById('val-db').textContent = formatNumber(sensors.displayBH - calEng.siteRef.mean, 4);
   }
 
   // SNR bar
@@ -1141,7 +1149,7 @@ function updateDisplay() {
   const fill = document.getElementById('snr-fill');
   fill.style.width = (snrPct*100).toFixed(0)+'%';
   fill.style.background = snrPct>0.8 ? 'var(--green-ok)' : snrPct>0.5 ? 'var(--accent)' : snrPct>0.3 ? 'var(--warn)' : 'var(--danger)';
-  document.getElementById('snr-val').textContent = `σ=${fmtNum(sensors.lastDisplayStd,3)} µT`;
+  document.getElementById('snr-val').textContent = `σ=${formatNumber(sensors.displayStd, 3)} µT`;
   document.getElementById('snr-status').textContent = snrPct>0.8 ? '✓ مستقر' : snrPct>0.5 ? '~ جيد' : '⚠ ضجيج';
 
   const led = document.getElementById('stab-led');
@@ -1154,8 +1162,8 @@ function updateDisplay() {
   bs.textContent = sensors.magOk ? (sensors.B_NED.valid ? 'MAG NED ✓' : 'MAG (fb)') : 'NO MAG';
   bs.className   = sensors.magOk ? 'badge ok' : 'badge error';
 
-  document.getElementById('badge-noise').textContent = `σ=${fmtNum(sensors.lastDisplayStd,3)}µT`;
-  document.getElementById('badge-noise').className   = sensors.lastDisplayStd<0.1?'badge ok':sensors.lastDisplayStd<0.5?'badge warn':'badge error';
+  document.getElementById('badge-noise').textContent = `σ=${formatNumber(sensors.displayStd, 3)}µT`;
+  document.getElementById('badge-noise').className = sensors.displayStd<0.1 ? 'badge ok' : sensors.displayStd<0.5 ? 'badge warn' : 'badge error';
 
   const bc=document.getElementById('badge-cal');
   if (calEng.siteDone&&calEng.ironDone) { bc.textContent='CAL OK'; bc.className='badge ok'; }
@@ -1197,7 +1205,7 @@ async function moveTo(dx, dy) {
   if (!scanActive || scanPointTimer) return;
   currentPos.x+=dx; currentPos.y+=dy;
   document.getElementById('pos-info').innerHTML=
-    `الموقع: <strong>${currentPos.x}, ${currentPos.y}</strong> | ${fmtNumShort(currentPos.x*stepSize,2)}م, ${fmtNumShort(currentPos.y*stepSize,2)}م`;
+    `الموقع: <strong>${currentPos.x}, ${currentPos.y}</strong> | ${formatNumberShort(currentPos.x*stepSize,2)}م, ${formatNumberShort(currentPos.y*stepSize,2)}م`;
 
   log(`الانتقال إلى (${currentPos.x},${currentPos.y}) — القياس 10s…`);
 
@@ -1237,7 +1245,7 @@ async function moveTo(dx, dy) {
   DataStore.save(scanPoints);
 
   const qual = result.std < 0.1 ? '✓' : result.std < 0.5 ? '~' : '!';
-  log(`(${pt.gx},${pt.gy}): |B|=${fmtNumShort(result.mean,3)} ΔB=${fmtNumShort(deltaB,3)} score=${fmtNumShort(score,3)} σ=${fmtNumShort(result.std,3)} ${qual}`,
+  log(`(${pt.gx},${pt.gy}): |B|=${formatNumberShort(result.mean,3)} ΔB=${formatNumberShort(deltaB,3)} score=${formatNumberShort(score,3)} σ=${formatNumberShort(result.std,3)} ${qual}`,
       score>0.6?'error':score>0.3?'warn':'ok');
 
   renderCurrentView();
@@ -1271,7 +1279,7 @@ function showOverlayInfo() {
   document.getElementById('oi-pts').textContent=scanPoints.length;
   const xs=scanPoints.map(p=>p.gx), ys=scanPoints.map(p=>p.gy);
   document.getElementById('oi-grid').textContent=`${Math.max(...xs)-Math.min(...xs)+1}×${Math.max(...ys)-Math.min(...ys)+1}`;
-  document.getElementById('oi-dbmax').textContent=fmtNumShort(Math.max(...scanPoints.map(p=>Math.abs(p.deltaB))),3);
+  document.getElementById('oi-dbmax').textContent=formatNumberShort(Math.max(...scanPoints.map(p=>Math.abs(p.deltaB))),3);
   document.getElementById('oi-step').textContent=stepSize;
 }
 
@@ -1314,7 +1322,7 @@ function exportPNG() {
 function exportCSV() {
   if (!scanPoints.length) return;
   const hdr='grid_x,grid_y,x_m,y_m,B_H_uT,deltaB_uT,anomaly_score,std_uT,count,timestamp\n';
-  const rows=scanPoints.map(p=>`${p.gx},${p.gy},${fmtNumShort(p.gx*stepSize,3)},${fmtNumShort(p.gy*stepSize,3)},${fmtNumShort(p.magnitude,4)},${fmtNumShort(p.deltaB,4)},${fmtNumShort(p.anomaly_score,4)},${fmtNumShort(p.std,4)},${p.count||0},${p.timestamp}`).join('\n');
+  const rows=scanPoints.map(p=>`${p.gx},${p.gy},${formatNumberShort(p.gx*stepSize,3)},${formatNumberShort(p.gy*stepSize,3)},${formatNumber(p.magnitude,4)},${formatNumber(p.deltaB,4)},${formatNumber(p.anomaly_score,4)},${formatNumber(p.std,4)},${p.count||0},${p.timestamp}`).join('\n');
   const blob=new Blob([hdr+rows],{type:'text/csv'});
   const link=document.createElement('a');
   link.download=`magscan_${Date.now()}.csv`; link.href=URL.createObjectURL(blob); link.click();
@@ -1337,14 +1345,14 @@ function setupCalUI() {
       const r = await calEng.calibrateSite((p)=>{
         document.getElementById('prog-site').style.width=(p*100)+'%';
         document.getElementById('prog-site-label').textContent=
-          `${Math.round(p*60)}s/60s | B_H=${fmtNumShort(sensors.lastDisplayBH,3)} µT | σ=${fmtNumShort(sensors.lastDisplayStd,3)} µT`;
+          `${Math.round(p*60)}s/60s | B_H=${formatNumberShort(sensors.displayBH,3)} µT | σ=${formatNumberShort(sensors.displayStd,3)} µT`;
       });
       document.getElementById('dot-site').className='dot done';
-      document.getElementById('site-result').textContent=
-        `B_ref=${fmtNumShort(r.mean,3)} µT  σ=${fmtNumShort(r.std,3)} µT  جودة=${(r.quality*100).toFixed(0)}%`;
+      document.getElementById('site-result').textContent =
+        `B_ref=${formatNumberShort(r.mean,3)} µT  σ=${formatNumberShort(r.std,3)} µT  جودة=${(r.quality*100).toFixed(0)}%`;
       btn.textContent='✓ اكتملت معايرة الموقع';
       document.getElementById('btn-iron-cal').disabled=false;
-      log(`معايرة الموقع اكتملت — B_ref=${fmtNumShort(r.mean,3)} µT  σ=${fmtNumShort(r.std,3)}`, 'ok');
+      log(`معايرة الموقع اكتملت — B_ref=${formatNumberShort(r.mean,3)} µT  σ=${formatNumberShort(r.std,3)}`, 'ok');
       updateButtonStates();
     } catch(e) {
       document.getElementById('dot-site').className='dot error';
@@ -1367,13 +1375,13 @@ function setupCalUI() {
           const r = await calEng.calibrateIron((p)=>{
             document.getElementById('prog-iron').style.width=(p*100)+'%';
             document.getElementById('prog-iron-label').textContent=
-              `${Math.round(p*60)}s/60s | B=${fmtNumShort(sensors.lastDisplayBH,3)} µT | σ=${fmtNumShort(sensors.lastDisplayStd,3)} µT`;
+              `${Math.round(p*60)}s/60s | B=${formatNumberShort(sensors.displayBH,3)} µT | σ=${formatNumberShort(sensors.displayStd,3)} µT`;
           });
           document.getElementById('dot-iron').className='dot done';
-          document.getElementById('iron-result').textContent=
-            `B_iron=${fmtNumShort(r.mean,3)} µT  ΔB=${fmtNumShort(r.deltaB,3)} µT  σ=${fmtNumShort(r.std,3)}`;
+          document.getElementById('iron-result').textContent =
+            `B_iron=${formatNumberShort(r.mean,3)} µT  ΔB=${formatNumberShort(r.deltaB,3)} µT  σ=${formatNumberShort(r.std,3)}`;
           btn.textContent='✓ اكتملت معايرة الحديد';
-          log(`معايرة الحديد اكتملت — ΔB_ref=${fmtNumShort(r.deltaB,3)} µT`, 'ok');
+          log(`معايرة الحديد اكتملت — ΔB_ref=${formatNumberShort(r.deltaB,3)} µT`, 'ok');
           updateButtonStates();
           showToast('✅ جميع المعايرات اكتملت — المسح متاح!');
         } catch(e) {
@@ -1446,7 +1454,7 @@ function setupSensorPermUI() {
 document.addEventListener('DOMContentLoaded', async () => {
   sensors.onUpdate = updateDisplay;
   await sensors.start();
-  log('MagScan Pro v3 جاهز — 4 منازل عشرية — أداء محسّن', 'ok');
+  log('MagScan Pro v3 جاهز — عرض 4 منازل عشرية فقط', 'ok');
 
   setInterval(updateDisplay, DISPLAY_UPDATE_INTERVAL_MS);
 
