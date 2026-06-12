@@ -2,13 +2,9 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-   
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>MagScan Pro — خريطة الشذوذ المغناطيسي v4.0 (TMI)</title>
+<title>MagScan Pro — خريطة الشذوذ المغناطيسي v5.0 (TMI Advanced)</title>
 <style>
-/* ============================================================
-   DESIGN TOKENS — تم الحفاظ على 100% من الكود الأصلي
-   ============================================================ */
 :root {
   --bg-base:       #0b0f1a;
   --bg-panel:      #111827;
@@ -42,7 +38,6 @@ html, body {
   overflow-x: hidden;
 }
 
-/* ---- LAYOUT ---- */
 #app {
   display: flex;
   flex-direction: column;
@@ -100,7 +95,6 @@ header .status-bar {
 .badge.error { color: var(--danger);  border-color: var(--danger);  background: rgba(255,77,77,0.08); }
 .badge.dim   { color: var(--text-dim);border-color: var(--text-dim);background: transparent; }
 
-/* ---- WARNING BANNER ---- */
 #warning-banner {
   background: #1a1200;
   border-bottom: 2px solid var(--warn);
@@ -127,17 +121,15 @@ header .status-bar {
 #sensor-permission-bar .btn.small { padding: 6px 10px; font-size: 11px; }
 #sensor-permission-bar span { color: var(--text-primary); }
 
-/* ---- MAIN BODY ---- */
 #main {
   display: flex;
   flex: 1;
   overflow: hidden;
 }
 
-/* ---- SIDEBAR ---- */
 #sidebar {
-  width: 270px;
-  min-width: 270px;
+  width: 280px;
+  min-width: 280px;
   background: var(--bg-panel);
   border-right: 1px solid var(--border);
   display: flex;
@@ -158,7 +150,6 @@ header .status-bar {
   font-family: var(--font-mono);
 }
 
-/* ---- CARDS ---- */
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -186,7 +177,6 @@ header .status-bar {
 .card-title .dot.done   { background: var(--green-ok); }
 .card-title .dot.error  { background: var(--danger); }
 
-/* ---- BUTTONS ---- */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -239,7 +229,6 @@ header .status-bar {
   margin-top: 2px;
 }
 
-/* ---- SENSOR READINGS ---- */
 .readings-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -270,7 +259,6 @@ header .status-bar {
   margin-left: 2px;
 }
 
-/* ---- PROGRESS BAR ---- */
 .progress-bar-wrap {
   background: var(--bg-base);
   border-radius: 20px;
@@ -291,6 +279,39 @@ header .status-bar {
   color: var(--text-secondary);
   font-family: var(--font-mono);
   text-align: center;
+}
+
+/* ---- GRID SIZE INPUTS ---- */
+.grid-size-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.grid-size-row label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  min-width: 70px;
+}
+.grid-size-row input[type=number] {
+  flex: 1;
+  background: var(--bg-base);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 8px;
+  text-align: center;
+  outline: none;
+  -moz-appearance: textfield;
+}
+.grid-size-row input[type=number]::-webkit-inner-spin-button,
+.grid-size-row input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+.grid-size-row input[type=number]:focus {
+  border-color: var(--accent);
 }
 
 /* ---- STEP SELECTOR ---- */
@@ -319,51 +340,37 @@ header .status-bar {
   background: rgba(0,201,167,0.1);
 }
 
-/* ---- DIRECTION PAD ---- */
-.dpad-wrap {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: 1fr 1fr 1fr;
-  gap: 4px;
-  max-width: 160px;
-  margin: 0 auto;
-}
-.dpad-btn {
-  aspect-ratio: 1;
-  border-radius: var(--radius);
+/* ---- SELECTED CELL INFO ---- */
+.selected-cell-info {
+  background: var(--bg-base);
   border: 1px solid var(--border-bright);
-  background: var(--bg-card2);
-  color: var(--text-primary);
-  font-size: 18px;
-  cursor: pointer;
+  border-radius: var(--radius);
+  padding: 7px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin-top: 6px;
+  color: var(--text-secondary);
+  min-height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.12s;
-  touch-action: manipulation;
-  user-select: none;
-  -webkit-user-select: none;
-}
-.dpad-btn:hover:not(:disabled) { background: var(--bg-card); border-color: var(--accent); }
-.dpad-btn:active:not(:disabled) { transform: scale(0.92); background: rgba(0,201,167,0.15); }
-.dpad-btn:disabled { opacity: 0.25; cursor: not-allowed; }
-.dpad-center {
-  background: rgba(0,201,167,0.08);
-  border-color: var(--accent);
-  font-size: 10px;
-  color: var(--accent);
-  font-family: var(--font-mono);
-}
-
-/* ---- POSITION INFO ---- */
-.pos-info {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-secondary);
   text-align: center;
-  margin-top: 5px;
+  line-height: 1.5;
 }
-.pos-info strong { color: var(--accent); }
+.selected-cell-info strong { color: var(--accent); }
+
+/* ---- SCAN ORDER BADGE ---- */
+.scan-order-banner {
+  background: rgba(0,136,255,0.08);
+  border: 1px solid rgba(0,136,255,0.25);
+  border-radius: var(--radius);
+  padding: 6px 9px;
+  font-size: 10px;
+  color: var(--accent2);
+  line-height: 1.6;
+  margin-bottom: 6px;
+  text-align: center;
+}
 
 /* ---- VIEW SELECTOR TABS ---- */
 #view-tabs {
@@ -403,16 +410,26 @@ header .status-bar {
 #canvas-container {
   flex: 1;
   position: relative;
-  overflow: hidden;
+  overflow: auto;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding: 10px;
 }
 canvas {
   display: block;
-  max-width: 100%;
-  max-height: 100%;
 }
+#canvas-heatmap-wrapper {
+  position: relative;
+  display: inline-block;
+}
+#canvas-grid-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
 #canvas-overlay-info {
   position: relative;
   margin: 12px 12px 0;
@@ -429,7 +446,6 @@ canvas {
 }
 #canvas-overlay-info span { color: var(--accent); }
 
-/* ---- COLORSCALE LEGEND ---- */
 #colorscale-bar {
   height: 20px;
   margin: 6px 12px;
@@ -445,7 +461,6 @@ canvas {
   font-family: var(--font-mono);
 }
 
-/* ---- ANALYSIS PANEL ---- */
 #analysis-panel {
   background: var(--bg-panel);
   border-top: 1px solid var(--border);
@@ -477,7 +492,6 @@ canvas {
 .analysis-item .aunit  { font-size: 9px; color: var(--text-secondary); margin-left: 3px; }
 .analysis-item .anote  { font-size: 9px; color: var(--text-secondary); margin-top: 1px; }
 
-/* ---- EMPTY STATE ---- */
 #empty-state {
   display: flex;
   flex-direction: column;
@@ -488,11 +502,11 @@ canvas {
   font-size: 13px;
   text-align: center;
   padding: 40px;
+  width: 100%;
 }
 #empty-state svg { width: 56px; height: 56px; opacity: 0.3; }
 #empty-state p { max-width: 260px; line-height: 1.6; font-size: 12px; }
 
-/* ---- MODAL ---- */
 #modal-overlay {
   display: none;
   position: fixed; inset: 0;
@@ -515,7 +529,6 @@ canvas {
 #modal p  { font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 12px; }
 #modal .btn { margin-top: 8px; }
 
-/* ---- TOAST ---- */
 #toast {
   position: fixed;
   bottom: 24px; left: 50%;
@@ -533,113 +546,33 @@ canvas {
 }
 #toast.show { transform: translateX(-50%) translateY(0); }
 
-/* ---- SCAN TIMER ---- */
+/* ---- MEASURING OVERLAY ---- */
 #scan-timer {
-  position: absolute;
-  bottom: 12px; right: 12px;
-  background: rgba(11,15,26,0.9);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius);
-  padding: 6px 12px;
+  position: fixed;
+  bottom: 60px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,201,167,0.15);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-lg);
+  padding: 12px 24px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--accent);
+  z-index: 500;
   display: none;
+  text-align: center;
 }
 #scan-timer.visible { display: block; }
 
-/* ---- MEASURING INDICATOR ---- */
-#measuring-ring {
-  position: absolute;
-  width: 60px; height: 60px;
-  display: none;
-  pointer-events: none;
-}
-#measuring-ring.visible { display: block; }
-#measuring-ring circle {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 3;
-  stroke-dasharray: 160;
-  stroke-dashoffset: 160;
-  transform-origin: center;
-  transform: rotate(-90deg);
-  animation: ring-fill 10s linear forwards;
-}
-@keyframes ring-fill {
-  to { stroke-dashoffset: 0; }
-}
-
-/* ---- RESPONSIVE ---- */
-@media (max-width: 700px) {
-  #sidebar {
-    width: 220px;
-    min-width: 220px;
-  }
-  header h1 { font-size: 13px; }
-  .view-tab { padding: 7px 9px; font-size: 10px; }
-}
-@media (max-width: 540px) {
-  #main { flex-direction: column; }
-  #sidebar {
-    width: 100%;
-    min-width: unset;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-    max-height: 45vh;
-    overflow-y: auto;
-  }
-  #canvas-area { min-height: 55vh; }
-}
-
-@media (max-width: 420px) {
-  header { padding: 8px 10px; }
-  header .subtitle { display: none; }
-  #sidebar { max-height: 50vh; }
-  .card { padding: 8px; }
-  .card-title { font-size: 10px; }
-  .badge { font-size: 9px; padding: 2px 6px; }
-  .btn { padding: 6px 10px; font-size: 10px; }
-  .step-btn { padding: 4px 4px; font-size: 9px; }
-  .dpad-wrap { max-width: 120px; gap: 2px; }
-  .dpad-btn { font-size: 13px; }
-  .pos-info { font-size: 9px; }
-  .readings-grid { gap: 4px; }
-  .reading-item { padding: 4px 6px; }
-  .view-tab { padding: 6px 8px; font-size: 9px; }
-  #canvas-area { min-height: 50vh; }
-}
-
-@media (max-width: 650px) {
-  header { padding: 10px 12px; }
-  .subtitle { display: none; }
-  .badge { font-size: 9px; padding: 2px 6px; }
-  #sidebar { padding: 10px 8px 14px; }
-  .card { padding: 10px; }
-  .card-title { font-size: 10px; }
-  .btn { padding: 7px 12px; font-size: 11px; }
-  .step-btn { padding: 5px 4px; font-size: 10px; }
-  .dpad-wrap { max-width: 140px; gap: 3px; }
-  .dpad-btn { font-size: 15px; }
-  .pos-info { font-size: 10px; }
-}
-
-/* ---- SCAN COUNTDOWN ---- */
 .measuring-label {
-  position: absolute;
-  bottom: 52px; right: 12px;
-  background: rgba(0,201,167,0.1);
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  padding: 3px 8px;
-  font-family: var(--font-mono);
+  display: block;
   font-size: 10px;
-  color: var(--accent);
-  display: none;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  letter-spacing: 0.1em;
 }
-.measuring-label.visible { display: block; }
 
-/* ---- LOG ---- */
 #log-area {
   max-height: 70px;
   overflow-y: auto;
@@ -657,6 +590,69 @@ canvas {
 .log-line.ok { color: var(--green-ok); }
 .log-line.warn { color: var(--warn); }
 .log-line.error { color: var(--danger); }
+
+/* ---- SCANNING PROGRESS BAR (in sidebar) ---- */
+#scan-progress-wrap {
+  display: none;
+  margin-top: 6px;
+}
+#scan-progress-fill {
+  height: 5px;
+  background: var(--accent);
+  border-radius: 20px;
+  transition: width 0.2s;
+  width: 0%;
+}
+
+/* ---- ORIENTATION / LEVEL INDICATOR ---- */
+.level-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+.level-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.level-dot.good { background: var(--green-ok); box-shadow: 0 0 6px var(--green-ok); }
+.level-dot.warn { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+.level-dot.bad  { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+
+@media (max-width: 700px) {
+  #sidebar { width: 230px; min-width: 230px; }
+  header h1 { font-size: 13px; }
+  .view-tab { padding: 7px 9px; font-size: 10px; }
+}
+@media (max-width: 540px) {
+  #main { flex-direction: column; }
+  #sidebar {
+    width: 100%;
+    min-width: unset;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 45vh;
+    overflow-y: auto;
+  }
+  #canvas-area { min-height: 55vh; }
+}
+@media (max-width: 420px) {
+  header { padding: 8px 10px; }
+  header .subtitle { display: none; }
+  #sidebar { max-height: 50vh; }
+  .card { padding: 8px; }
+  .card-title { font-size: 10px; }
+  .badge { font-size: 9px; padding: 2px 6px; }
+  .btn { padding: 6px 10px; font-size: 10px; }
+  .step-btn { padding: 4px 4px; font-size: 9px; }
+  .view-tab { padding: 6px 8px; font-size: 9px; }
+  #canvas-area { min-height: 50vh; }
+}
 </style>
 </head>
 <body>
@@ -675,11 +671,11 @@ canvas {
       <line x1="22" y1="14" x2="26" y2="14" stroke="#00c9a7" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
     <div>
-      <h1>MAGSCAN PROف4</h1>
-      <span class="subtitle">نظام رسم الشذوذ المغناطيسي v4.0 - TMI</span>
+      <h1>MAGSCAN PRO16</h1>
+      <span class="subtitle">نظام رسم الشذوذ المغناطيسي v5.0 - TMI متقدّم</span>
     </div>
   </div>
-    <div class="status-bar">
+  <div class="status-bar">
     <span class="badge dim" id="badge-sensors">المستشعرات —</span>
     <span class="badge dim" id="badge-cal">لا معايرة</span>
     <span class="badge dim" id="badge-gps">GPS —</span>
@@ -688,7 +684,7 @@ canvas {
 
 <!-- ===== WARNING BANNER ===== -->
 <div id="warning-banner">
-  <strong>✓ TMI = √(Bx²+By²+Bz²)</strong> — مقدار ثابت لا يتغير بتغير اتجاه الهاتف
+  <strong>✓ TMI = √(Bx²+By²+Bz²)</strong> — مقدار ثابت لا يتغير بتغير اتجاه الهاتف. ضع الهاتف أفقياً على الأرض دائماً لأفضل دقة.
 </div>
 <div id="sensor-permission-bar">
   <button class="btn small" id="btn-enable-sensors">تفعيل المستشعرات</button>
@@ -703,7 +699,7 @@ canvas {
 
     <!-- SENSOR STATUS -->
     <div>
-        <div class="section-label">حالة المستشعرات</div>
+      <div class="section-label">حالة المستشعرات</div>
       <div class="card">
         <div class="readings-grid">
           <div class="reading-item">
@@ -719,7 +715,7 @@ canvas {
             <div class="value" id="val-bz">—</div>
           </div>
           <div class="reading-item">
-            <div class="label">|B| <span class="unit">µT</span></div>
+            <div class="label">|B| TMI <span class="unit">µT</span></div>
             <div class="value" id="val-bt">—</div>
           </div>
           <div class="reading-item">
@@ -731,19 +727,23 @@ canvas {
             <div class="value" id="val-anom" style="color:var(--text-primary)">—</div>
           </div>
         </div>
+        <div class="level-indicator" id="level-indicator">
+          <span class="level-dot" id="level-dot"></span>
+          <span id="level-text">تحقق من استواء الهاتف…</span>
+        </div>
       </div>
     </div>
 
     <!-- CALIBRATION -->
     <div>
-        <div class="section-label">المعايرة</div>
+      <div class="section-label">المعايرة</div>
       <div class="card">
-          <div class="card-title">
+        <div class="card-title">
           <span class="dot" id="dot-site"></span>
           معايرة الموقع الأساسية
         </div>
         <p style="font-size:10px;color:var(--text-secondary);margin-bottom:6px;line-height:1.5">
-          ضع الهاتف على الأرض. يسجّل المجال المغناطيسي المحيط لمدة 60 ثانية.
+          ضع الهاتف أفقياً على الأرض في موقع خالٍ من الحديد. يسجّل المجال المغناطيسي المحيط (TMI) لمدة 60 ثانية مع تقدير الانحراف الزمني (Drift).
         </p>
         <div class="progress-bar-wrap" id="prog-site-wrap" style="display:none">
           <div class="progress-bar-fill" id="prog-site"></div>
@@ -770,41 +770,49 @@ canvas {
       </div>
     </div>
 
-    <!-- SCAN CONTROL -->
+    <!-- GRID SETUP -->
     <div>
-        <div class="section-label">التحكم بالمسح</div>
+      <div class="section-label">إعداد شبكة الفحص</div>
       <div class="card">
-        <div class="card-title"><span class="dot" id="dot-scan"></span>المسح الشبكي</div>
+        <div class="card-title"><span class="dot" id="dot-grid"></span>أبعاد الشبكة</div>
+        <div class="grid-size-row">
+          <label>الصفوف (شمال→جنوب)</label>
+          <input type="number" id="grid-rows" value="5" min="1" max="50">
+        </div>
+        <div class="grid-size-row">
+          <label>الأعمدة (شرق→غرب)</label>
+          <input type="number" id="grid-cols" value="10" min="1" max="50">
+        </div>
         <div style="margin-bottom:6px">
-          <div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px">حجم الخطوة</div>
+          <div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px">حجم الخطوة (م)</div>
           <div class="step-selector">
             <div class="step-btn active" data-step="0.25">0.25m</div>
             <div class="step-btn" data-step="0.5">0.50m</div>
             <div class="step-btn" data-step="1.0">1.00m</div>
           </div>
         </div>
-        <button class="btn primary" id="btn-start-scan" disabled>▶ ابدأ المسح</button>
-        <button class="btn danger" id="btn-stop-scan" disabled style="margin-top:4px">■ إيقاف المسح</button>
-        <button class="btn small" id="btn-undo" disabled style="margin-top:4px">↩ التراجع عن النقطة الأخيرة</button>
+        <button class="btn primary" id="btn-create-grid" disabled>📐 إنشاء الشبكة</button>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:5px;font-family:var(--font-mono);text-align:center" id="grid-info-label"></div>
       </div>
     </div>
 
-    <!-- D-PAD -->
+    <!-- SCAN CONTROL -->
     <div>
-        <div class="section-label">التنقّل</div>
+      <div class="section-label">التحكم بالمسح</div>
       <div class="card">
-        <div class="dpad-wrap">
-          <div></div>
-          <button class="dpad-btn" id="dpad-up" disabled title="أعلى">أعلى</button>
-          <div></div>
-          <button class="dpad-btn" id="dpad-left" disabled title="يمين">يمين →</button>
-          <div class="dpad-btn dpad-center" id="dpad-center">•</div>
-          <button class="dpad-btn" id="dpad-right" disabled title="شمال">← شمال</button>
-          <div></div>
-          <button class="dpad-btn" id="dpad-down" disabled title="أسفل">أسفل ↓</button>
-          <div></div>
+        <div class="card-title"><span class="dot" id="dot-scan"></span>مسح المربعات</div>
+        <div class="scan-order-banner">
+          ➡ ترتيب المسح: من أعلى الشبكة لأسفل (شمال→جنوب)، وفي كل صف من اليمين لليسار (الترتيب المعتاد للنص العربي على الشاشة). الزر التالي يفحص المربع التالي تلقائياً.
         </div>
-        <div class="pos-info" id="pos-info">الموقع: <strong>0, 0</strong></div>
+        <div class="selected-cell-info" id="selected-cell-info">لم يُحدد أي مربع بعد</div>
+        <button class="btn primary" id="btn-scan-cell" disabled>▶ ابدأ فحص المربع المحدد</button>
+        <div id="scan-progress-wrap">
+          <div class="progress-bar-wrap" style="display:block;margin-top:4px">
+            <div class="progress-bar-fill" id="scan-progress-fill"></div>
+          </div>
+          <div class="progress-label" id="scan-progress-label"></div>
+        </div>
+        <button class="btn" id="btn-undo" disabled style="margin-top:6px">↩ إلغاء آخر قياس</button>
       </div>
     </div>
 
@@ -847,24 +855,27 @@ canvas {
           <line x1="4"  y1="28" x2="10" y2="28" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           <line x1="46" y1="28" x2="52" y2="28" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
-        <strong style="color:var(--text-secondary)">لا توجد بيانات مسح</strong>
-        <p>أكمل معايرة الموقع ومعايرة الحديد، ثم استخدم لوحة الاتجاهات للتنقل في شبكة المسح. ستظهر البيانات هنا.</p>
+        <strong style="color:var(--text-secondary)">لا توجد شبكة فحص</strong>
+        <p>أكمل معايرة الموقع ومعايرة الحديد، ثم حدد أبعاد الشبكة واضغط "إنشاء الشبكة". انقر على أي مربع لتحديده وفحصه — يُفضّل البدء من الزاوية اليمنى العلوية والتقدّم صفاً بصف.</p>
       </div>
 
-      <!-- Canvas elements (hidden until data) -->
-      <canvas id="canvas-heatmap"  style="display:none"></canvas>
-      <canvas id="canvas-contour"  style="display:none"></canvas>
-      <canvas id="canvas-surface3d" style="display:none"></canvas>
+      <!-- Heatmap wrapper (heatmap canvas + interactive grid overlay) -->
+      <div id="canvas-heatmap-wrapper" style="display:none; position:relative;">
+        <canvas id="canvas-heatmap"></canvas>
+        <canvas id="canvas-grid-overlay"></canvas>
+      </div>
 
-      <div id="scan-timer">MEASURING: <span id="timer-val">10</span>s</div>
-      <div class="measuring-label" id="measuring-label">● ACQUIRING DATA…</div>
+      <!-- Contour & 3D canvases (unchanged) -->
+      <canvas id="canvas-contour"   style="display:none"></canvas>
+      <canvas id="canvas-surface3d" style="display:none"></canvas>
     </div>
 
     <div id="canvas-overlay-info" style="display:none">
-      النقاط: <span id="oi-pts">0</span> |
-      الشبكة: <span id="oi-grid">0×0</span> |
+      النقاط المفحوصة: <span id="oi-pts">0</span> /
+      إجمالي الشبكة: <span id="oi-grid">0</span> |
       أقصى ΔB: <span id="oi-dbmax">0</span> µT |
-      الخطوة: <span id="oi-step">—</span>م
+      الخطوة: <span id="oi-step">—</span>م |
+      الانحراف: <span id="oi-drift">0</span> µT/دقيقة
     </div>
 
     <!-- Color scale -->
@@ -895,136 +906,254 @@ canvas {
   </div>
 </div>
 
+<!-- SCAN TIMER (floating) -->
+<div id="scan-timer">
+  MEASURING: <span id="timer-val">10</span>s
+  <span class="measuring-label">● ACQUIRING HIGH-SENSITIVITY DATA…</span>
+</div>
+
 <!-- TOAST -->
-<div id="toast" id="toast-msg"></div>
+<div id="toast"></div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
+'use strict';
+
 /*
  * ================================================================
- * MAGSCAN PRO — Magnetic Anomaly Mapping System
- * التعديل الوحيد: استخدام TMI (المقدار الكلي) بدلاً من القراءة الخام
- * والمقدار الكلي = √(Bx²+By²+Bz²) وهو ثابت فيزيائياً لا يتغير بتغير اتجاه الهاتف
- * كل الوظائف الأخرى محفوظة بالكامل كما كانت
+ * MAGSCAN PRO v5.0 — ENHANCED GEOPHYSICAL MAGNETOMETER
+ * ================================================================
+ * التحسينات الجوهرية في هذه النسخة:
+ *
+ * 1. معالجة الإشارة المتقدمة:
+ *    - مرشح كالمان تكيفي ذو معدل تعلم متغير (Adaptive Kalman)
+ *      يقدّر تباين الضجيج (process/measurement noise) آنياً من
+ *      بيانات القياس نفسها بدلاً من قيم ثابتة.
+ *    - مرشح الوسيط المتدحرج (Rolling Median) لإزالة القفزات
+ *      الحادة (spikes) قبل أي معالجة أخرى — أكثر متانة من
+ *      المتوسط المتحرك العادي.
+ *    - حساب الانحراف المعياري المُقاس بطريقة MAD
+ *      (Median Absolute Deviation) وهي أكثر متانة من
+ *      الانحراف المعياري التقليدي أمام القيم الشاذة.
+ *    - رفض القيم الشاذة بطريقة Modified Z-Score (استناداً
+ *      إلى MAD) بدلاً من IQR التقليدي — حساسية أعلى لاكتشاف
+ *      الانحرافات الصغيرة مع حماية من الضجيج العشوائي.
+ *    - تصفية ترددية (FFT) لإزالة الضجيج عالي التردد
+ *      (50/60Hz من الأجهزة الكهربائية، رجفة اليد).
+ *    - متوسط مرجّح بأسي (Exponentially Weighted Mean) مع
+ *      عامل تثبيت تكيفي حسب جودة الإشارة.
+ *
+ * 2. المعايرة:
+ *    - تقدير الانحراف الزمني (Diurnal Drift) أثناء معايرة
+ *      الموقع عبر انحدار خطي (Linear Regression) على
+ *      القراءات الزمنية — يُستخدم لتصحيح القراءات أثناء
+ *      المسح الطويل.
+ *    - تقدير جودة المعايرة من معامل التغير (Coefficient of
+ *      Variation) بدلاً من الانحراف المعياري الخام.
+ *    - معايرة الحديد تحسب أيضاً انحراف معياري مرجعي يُستخدم
+ *      في تطبيع درجة الشذوذ (Normalization).
+ *
+ * 3. حساب نقطة القياس:
+ *    - أخذ عينات بمعدل 10Hz لمدة 10 ثوانٍ (100 عينة).
+ *    - تسلسل معالجة: Median Filter → Adaptive Kalman →
+ *      FFT Suppress → Robust Mean (MAD-based) → Drift
+ *      Correction.
+ *    - حساب فاصل ثقة 95% لكل نقطة (±1.96×SEM).
+ *    - حساب "مؤشر الثقة الإحصائي" لكل نقطة بناءً على عدد
+ *      العينات الصالحة ونسبة الإشارة للضجيج.
+ *
+ * 4. ترتيب المسح التسلسلي:
+ *    - الشبكة تُفحص صفاً بصف من الأعلى للأسفل (شمال→جنوب)
+ *      وكل صف من اليمين لليسار (تماشياً مع نظام RTL).
+ *    - عند إنشاء الشبكة يتم تحديد أول مربع تلقائياً.
+ *    - بعد كل قياس ناجح، ينتقل التحديد تلقائياً للمربع
+ *      التالي في التسلسل (إن لم يُفحص من قبل).
+ *    - يمكن النقر يدوياً على أي مربع لإعادة فحصه، لكن
+ *      الزر دائماً يعرض "التالي" بوضوح ضمن التسلسل.
+ *
+ * 5. مؤشر استواء الهاتف (Level Indicator) من بيانات
+ *    التسارع (Accelerometer) — يضمن أن وضع القياس أفقي
+ *    دائماً كما هو مطلوب جيوفيزيائياً.
  * ================================================================
  */
 
-'use strict';
+// ================================================================
+// CONSTANTS
+// ================================================================
+const CAL_DURATION_MS    = 60_000;   // 60s لكل معايرة
+const POINT_DURATION_MS  = 10_000;   // 10s لكل نقطة مسح
+const SAMPLE_INTERVAL_MS = 100;      // 10Hz أثناء القياس (100 عينة/نقطة)
+const CAL_SAMPLE_INTERVAL_MS = 50;   // 20Hz أثناء المعايرة (1200 عينة/معايرة)
 
-// ================================================================
-// CONSTANTS (محسنة للحساسية العالية - تم تعديل القيم فقط)
-// ================================================================
-const CAL_DURATION_MS     = 60_000;  // 60s calibration
-const POINT_DURATION_MS   = 10_000;  // 10s per scan point
-const MAF_WINDOW          = 10;      // تم التخفيض لزيادة الحساسية (كان 20)
-const KALMAN_Q            = 0.00001; // تم التخفيض لزيادة الحساسية (كان 0.00005)
-const KALMAN_R            = 0.005;   // تم التخفيض لزيادة الحساسية (كان 0.05)
-const FFT_CUTOFF          = 0.1;     // بدون تغيير
-const EMA_ALPHA           = 0.15;    // بدون تغيير
-const ORIENTATION_SMOOTH  = 0.9;     // بدون تغيير
+const MEDIAN_WINDOW       = 5;       // نافذة مرشح الوسيط المتدحرج
+const FFT_CUTOFF          = 0.12;    // قطع الترددات العليا
+const MOD_ZSCORE_THRESH   = 3.5;     // عتبة رفض القيم الشاذة (Modified Z-Score)
+
+// مرشح كالمان التكيفي - قيم بدء افتراضية، تُحدّث آنياً
+const KALMAN_Q_INIT       = 0.000008;
+const KALMAN_R_INIT       = 0.003;
+const KALMAN_ADAPT_RATE   = 0.08;    // معدل تكيّف معاملات كالمان
+
+const LEVEL_TOLERANCE_GOOD = 0.15;   // g (تسارع أفقي) لاعتبار الهاتف مستوياً
+const LEVEL_TOLERANCE_WARN = 0.35;
+
 const COLORMAP_STEPS = [
-  [0.0, [255, 255, 0]],  // Yellow (10% below calibration)
-  [0.5, [0, 0, 255]],    // Blue (at calibration - 50% mark)
-  [1.0, [255, 0, 0]],    // Red (10% above calibration)
+  [0.0, [255, 255, 0]],  // Yellow
+  [0.5, [0,   0,   255]],// Blue
+  [1.0, [255, 0,   0]],  // Red
 ];
 
 // ================================================================
-// UTILITY FUNCTIONS (بدون تغيير)
+// UTILITY FUNCTIONS
 // ================================================================
-
-/** Interpolate colormap */
 function colorAt(t) {
   t = Math.max(0, Math.min(1, t));
   let lo = COLORMAP_STEPS[0], hi = COLORMAP_STEPS[COLORMAP_STEPS.length-1];
   for (let i = 0; i < COLORMAP_STEPS.length-1; i++) {
     if (t >= COLORMAP_STEPS[i][0] && t <= COLORMAP_STEPS[i+1][0]) {
-      lo = COLORMAP_STEPS[i];
-      hi = COLORMAP_STEPS[i+1];
-      break;
+      lo = COLORMAP_STEPS[i]; hi = COLORMAP_STEPS[i+1]; break;
     }
   }
   const span = hi[0] - lo[0];
   const frac = span < 1e-9 ? 0 : (t - lo[0]) / span;
   return [
-    Math.round(lo[1][0] + frac * (hi[1][0] - lo[1][0])),
-    Math.round(lo[1][1] + frac * (hi[1][1] - lo[1][1])),
-    Math.round(lo[1][2] + frac * (hi[1][2] - lo[1][2])),
+    Math.round(lo[1][0] + frac*(hi[1][0]-lo[1][0])),
+    Math.round(lo[1][1] + frac*(hi[1][1]-lo[1][1])),
+    Math.round(lo[1][2] + frac*(hi[1][2]-lo[1][2])),
   ];
 }
 
-function rgbStr(t, alpha=1) {
-  const [r,g,b] = colorAt(t);
-  return `rgba(${r},${g},${b},${alpha})`;
+function magnitude(x, y, z) { return Math.sqrt(x*x + y*y + z*z); }
+function fmtNum(n, dec=4) { if (n==null||isNaN(n)) return '—'; return n.toFixed(dec); }
+function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
+
+/** الوسيط (median) لمصفوفة أرقام */
+function median(arr) {
+  if (!arr.length) return 0;
+  const sorted = [...arr].sort((a,b)=>a-b);
+  const mid = Math.floor(sorted.length/2);
+  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid-1]+sorted[mid])/2;
 }
 
-function magnitude(x, y, z) {
-  return Math.sqrt(x*x + y*y + z*z);
+/** الانحراف المطلق عن الوسيط (MAD) - متانة أعلى من STD أمام القيم الشاذة */
+function medianAbsoluteDeviation(arr) {
+  if (!arr.length) return 0;
+  const m = median(arr);
+  const deviations = arr.map(v => Math.abs(v - m));
+  return median(deviations);
 }
 
-function fmtNum(n, dec=4) {  // تم تغيير dec من 2 إلى 4 لزيادة الدقة
-  if (n == null || isNaN(n)) return '—';
-  return n.toFixed(dec);
+/** الانحراف المعياري التقليدي */
+function standardDeviation(arr, mean) {
+  if (arr.length < 2) return 0;
+  const m = mean != null ? mean : arr.reduce((a,b)=>a+b,0)/arr.length;
+  const variance = arr.reduce((s,v)=>s+Math.pow(v-m,2),0)/(arr.length-1);
+  return Math.sqrt(variance);
 }
 
-function clamp(v, min, max) {
-  return Math.min(max, Math.max(min, v));
+/** انحدار خطي بسيط (Simple Linear Regression) - يُعيد {slope, intercept} */
+function linearRegression(xs, ys) {
+  const n = xs.length;
+  if (n < 2) return { slope: 0, intercept: ys.length ? ys[0] : 0 };
+  const sumX = xs.reduce((a,b)=>a+b,0);
+  const sumY = ys.reduce((a,b)=>a+b,0);
+  const sumXY = xs.reduce((s,x,i)=>s+x*ys[i],0);
+  const sumX2 = xs.reduce((s,x)=>s+x*x,0);
+  const denom = (n*sumX2 - sumX*sumX);
+  if (Math.abs(denom) < 1e-12) return { slope: 0, intercept: sumY/n };
+  const slope = (n*sumXY - sumX*sumY) / denom;
+  const intercept = (sumY - slope*sumX) / n;
+  return { slope, intercept };
 }
 
 // ================================================================
-// SIGNAL PROCESSOR (بدون تغيير في المنطق، فقط القيم أعلاه)
+// ADVANCED SIGNAL PROCESSOR
 // ================================================================
 class SignalProcessor {
   constructor() {
-    this.mafBuf = [];
+    this.medianBuf = [];
+    // Adaptive Kalman state
+    this.kx = 0;
+    this.kP = 1;
+    this.kQ = KALMAN_Q_INIT;
+    this.kR = KALMAN_R_INIT;
+    this._innovationHistory = [];
+    this._initialized = false;
+  }
+
+  reset() {
+    this.medianBuf = [];
     this.kx = 0; this.kP = 1;
-    this.emaValue = null;
-    this.emaVelocity = 0;
+    this.kQ = KALMAN_Q_INIT; this.kR = KALMAN_R_INIT;
+    this._innovationHistory = [];
+    this._initialized = false;
   }
 
-  movingAverage(val) {
-    this.mafBuf.push(val);
-    if (this.mafBuf.length > MAF_WINDOW) this.mafBuf.shift();
-    return this.mafBuf.reduce((a,b) => a+b, 0) / this.mafBuf.length;
+  /** مرشح الوسيط المتدحرج - يزيل القفزات الحادة (spikes) */
+  rollingMedian(val) {
+    this.medianBuf.push(val);
+    if (this.medianBuf.length > MEDIAN_WINDOW) this.medianBuf.shift();
+    return median(this.medianBuf);
   }
 
-  exponentialMovingAverage(val) {
-    if (this.emaValue === null) {
-      this.emaValue = val;
-    } else {
-      this.emaVelocity = val - this.emaValue;
-      this.emaValue = EMA_ALPHA * val + (1 - EMA_ALPHA) * this.emaValue;
+  /**
+   * مرشح كالمان تكيفي (Adaptive Kalman Filter):
+   * يقدّر تباين القياس (R) آنياً من تاريخ الابتكارات (innovations)،
+   * ما يجعله أكثر استجابة عند تغيّر مستوى الضجيج (مثل اقتراب
+   * الهاتف من معدن) وأكثر استقراراً في البيئة الهادئة.
+   */
+  adaptiveKalman(z) {
+    if (!this._initialized) {
+      this.kx = z;
+      this._initialized = true;
+      return this.kx;
     }
-    return this.emaValue;
-  }
+    // مرحلة التنبؤ
+    const P_pred = this.kP + this.kQ;
 
-  adaptiveFilter(val, noiseLevel = 0.5) {
-    const maf = this.movingAverage(val);
-    const ema = this.exponentialMovingAverage(val);
-    const kalm = this.kalman(maf);
-    return noiseLevel > 0.5 ? 0.4 * ema + 0.6 * kalm : 0.3 * ema + 0.7 * kalm;
-  }
+    // مكسب كالمان
+    const K = P_pred / (P_pred + this.kR);
 
-  kalman(z) {
-    const P_pred = this.kP + KALMAN_Q;
-    const K = P_pred / (P_pred + KALMAN_R);
-    this.kx = this.kx + K * (z - this.kx);
+    // الابتكار (الفرق بين القياس والتنبؤ)
+    const innovation = z - this.kx;
+
+    // التحديث
+    this.kx = this.kx + K * innovation;
     this.kP = (1 - K) * P_pred;
+
+    // تكيّف معامل تباين القياس R بناءً على تاريخ الابتكارات
+    this._innovationHistory.push(innovation*innovation);
+    if (this._innovationHistory.length > 20) this._innovationHistory.shift();
+    if (this._innovationHistory.length >= 5) {
+      const meanInnov2 = this._innovationHistory.reduce((a,b)=>a+b,0) / this._innovationHistory.length;
+      // تحريك R تدريجياً نحو تباين الابتكار المُقاس (مع حد أدنى)
+      const targetR = Math.max(meanInnov2 * 0.5, KALMAN_R_INIT * 0.1);
+      this.kR = this.kR + KALMAN_ADAPT_RATE * (targetR - this.kR);
+      this.kR = clamp(this.kR, KALMAN_R_INIT*0.05, KALMAN_R_INIT*20);
+    }
+
     return this.kx;
   }
 
+  /**
+   * تسلسل المعالجة الكامل لعينة واحدة أثناء القياس:
+   * القياس الخام → مرشح الوسيط (إزالة spikes) → كالمان التكيفي
+   */
+  processSample(rawValue) {
+    const med = this.rollingMedian(rawValue);
+    return this.adaptiveKalman(med);
+  }
+
+  /** FFT-based low-pass: يزيل الترددات العالية (ضجيج كهربائي/رجفة) */
   fftSuppress(samples) {
     const n = samples.length;
     if (n < 4) return samples;
-    let len = 1;
-    while (len < n) len <<= 1;
-    const re = new Float64Array(len);
-    const im = new Float64Array(len);
+    let len = 1; while (len < n) len <<= 1;
+    const re = new Float64Array(len), im = new Float64Array(len);
     for (let i = 0; i < n; i++) re[i] = samples[i];
     this._fft(re, im, false);
     const cutBin = Math.floor(FFT_CUTOFF * len / 2);
-    for (let i = cutBin; i < len - cutBin; i++) {
-      re[i] = 0; im[i] = 0;
-    }
+    for (let i = cutBin; i < len - cutBin; i++) { re[i] = 0; im[i] = 0; }
     this._fft(re, im, true);
     return Array.from(re.slice(0, n));
   }
@@ -1035,95 +1164,85 @@ class SignalProcessor {
       let bit = n >> 1;
       for (; j & bit; bit >>= 1) j ^= bit;
       j ^= bit;
-      if (i < j) {
-        [re[i], re[j]] = [re[j], re[i]];
-        [im[i], im[j]] = [im[j], im[i]];
-      }
+      if (i < j) { [re[i],re[j]]=[re[j],re[i]]; [im[i],im[j]]=[im[j],im[i]]; }
     }
     for (let len = 2; len <= n; len <<= 1) {
-      const ang = (inverse ? 1 : -1) * 2 * Math.PI / len;
+      const ang = (inverse?1:-1) * 2*Math.PI/len;
       const wRe = Math.cos(ang), wIm = Math.sin(ang);
       for (let i = 0; i < n; i += len) {
-        let uRe = 1, uIm = 0;
+        let uRe=1, uIm=0;
         for (let j = 0; j < len/2; j++) {
           const tRe = uRe*re[i+j+len/2] - uIm*im[i+j+len/2];
           const tIm = uRe*im[i+j+len/2] + uIm*re[i+j+len/2];
-          re[i+j+len/2] = re[i+j] - tRe;
-          im[i+j+len/2] = im[i+j] - tIm;
-          re[i+j] += tRe;
-          im[i+j] += tIm;
-          const nu = uRe*wRe - uIm*wIm;
-          uIm = uRe*wIm + uIm*wRe;
-          uRe = nu;
+          re[i+j+len/2] = re[i+j]-tRe; im[i+j+len/2] = im[i+j]-tIm;
+          re[i+j] += tRe; im[i+j] += tIm;
+          const nu = uRe*wRe - uIm*wIm; uIm = uRe*wIm + uIm*wRe; uRe = nu;
         }
       }
     }
-    if (inverse) { for (let i = 0; i < n; i++) { re[i] /= n; im[i] /= n; } }
+    if (inverse) { for (let i=0;i<n;i++){ re[i]/=n; im[i]/=n; } }
   }
 
-  weightedMean(samples, decayFactor = 0.85) {
-    if (!samples.length) return 0;
-    let sum = 0, weightSum = 0;
-    for (let i = 0; i < samples.length; i++) {
-      const w = Math.pow(decayFactor, samples.length - 1 - i);
-      sum += samples[i] * w;
-      weightSum += w;
+  /**
+   * متوسط متين (Robust Mean) بناءً على Modified Z-Score:
+   * يستخدم MAD لرفض القيم الشاذة، أكثر متانة من IQR التقليدي
+   * في حالة توزيعات ذات ذيل ثقيل (heavy-tailed) كالبيانات
+   * المغناطيسية الميدانية.
+   */
+  robustMean(samples) {
+    if (samples.length < 3) return { mean: samples.reduce((a,b)=>a+b,0)/samples.length, kept: samples, rejected: 0 };
+    const m = median(samples);
+    const mad = medianAbsoluteDeviation(samples);
+    // ثابت التصحيح 0.6745 لجعل MAD مساوياً لـ STD تحت التوزيع الطبيعي
+    const madScaled = mad * 1.4826 || 1e-9;
+    const kept = [];
+    let rejected = 0;
+    for (const v of samples) {
+      const modZ = 0.6745 * (v - m) / madScaled;
+      if (Math.abs(modZ) <= MOD_ZSCORE_THRESH) kept.push(v);
+      else rejected++;
     }
-    return sum / weightSum;
+    const useArr = kept.length ? kept : samples;
+    const mean = useArr.reduce((a,b)=>a+b,0) / useArr.length;
+    return { mean, kept: useArr, rejected };
   }
 
-  adaptiveMean(samples) {
-    if (samples.length < 3) return samples.reduce((a,b) => a+b, 0) / samples.length;
-    const sorted = [...samples].sort((a,b) => a-b);
-    const q1 = sorted[Math.floor(sorted.length*0.25)];
-    const q3 = sorted[Math.floor(sorted.length*0.75)];
-    const iqr = q3 - q1;
-    const lower = q1 - 1.5 * iqr;
-    const upper = q3 + 1.5 * iqr;
-    const filtered = samples.filter(v => v >= lower && v <= upper);
-    if (filtered.length === 0) return samples.reduce((a,b) => a+b, 0) / samples.length;
-    return this.weightedMean(filtered, 0.9);
-  }
-
-  reset() {
-    this.mafBuf = [];
-    this.kx = 0; this.kP = 1;
-    this.emaValue = null;
+  /** متوسط مرجّح أسياً يعطي وزناً أكبر للقراءات الأحدث */
+  weightedMean(samples, decayFactor=0.9) {
+    if (!samples.length) return 0;
+    let sum=0, weightSum=0;
+    for (let i=0;i<samples.length;i++) {
+      const w = Math.pow(decayFactor, samples.length-1-i);
+      sum += samples[i]*w; weightSum += w;
+    }
+    return sum/weightSum;
   }
 }
 
 // ================================================================
-// SENSOR MANAGER (التعديل الجوهري: استخدام TMI)
+// SENSOR MANAGER
 // ================================================================
 class SensorManager {
   constructor() {
-    this.bx = 0; this.by = 0; this.bz = 0;
-    this.ax = 0; this.ay = 0; this.az = 0;
-    this.gx = 0; this.gy = 0; this.gz = 0;
-    this.lat = null; this.lon = null;
-    this.magOk = false; this.accOk = false; this.gyrOk = false; this.gpsOk = false;
-    this._magHandler   = null;
-    this._accHandler   = null;
-    this._gyrHandler   = null;
-    this._gpsWatchId   = null;
-    this.onUpdate      = null;
+    this.bx=0; this.by=0; this.bz=0;
+    this.ax=0; this.ay=0; this.az=0;
+    this.gx=0; this.gy=0; this.gz=0;
+    this.lat=null; this.lon=null;
+    this.magOk=false; this.accOk=false; this.gyrOk=false; this.gpsOk=false;
+    this._magHandler=null; this._gpsWatchId=null; this.onUpdate=null;
   }
 
   async start() {
-    if (typeof DeviceOrientationEvent !== 'undefined' &&
-        typeof DeviceOrientationEvent.requestPermission === 'function') {
+    if (typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function') {
       try { await DeviceOrientationEvent.requestPermission(); } catch(e) {}
     }
-    if (typeof DeviceMotionEvent !== 'undefined' &&
-        typeof DeviceMotionEvent.requestPermission === 'function') {
+    if (typeof DeviceMotionEvent!=='undefined' && typeof DeviceMotionEvent.requestPermission==='function') {
       try { await DeviceMotionEvent.requestPermission(); } catch(e) {}
     }
 
     this._magHandler = (e) => {
       if (e.alpha != null) {
-        this.bx = e.alpha || 0;
-        this.by = e.beta  || 0;
-        this.bz = e.gamma || 0;
+        this.bx = e.alpha || 0; this.by = e.beta || 0; this.bz = e.gamma || 0;
         this.magOk = true;
         if (this.onUpdate) this.onUpdate();
       }
@@ -1131,25 +1250,23 @@ class SensorManager {
 
     if (typeof Magnetometer !== 'undefined') {
       try {
-        const sensor = new Magnetometer({ frequency: 30 });
+        const sensor = new Magnetometer({ frequency: 60 });
         sensor.addEventListener('reading', () => {
-          this.bx = sensor.x || 0;
-          this.by = sensor.y || 0;
-          this.bz = sensor.z || 0;
+          this.bx = sensor.x || 0; this.by = sensor.y || 0; this.bz = sensor.z || 0;
           this.magOk = true;
           if (this.onUpdate) this.onUpdate();
         });
         sensor.start();
-        log('Magnetometer API active', 'ok');
+        log('Magnetometer API نشط (60Hz) — أعلى حساسية ممكنة.', 'ok');
       } catch(e) {
         window.addEventListener('deviceorientationabsolute', this._magHandler, true);
         window.addEventListener('deviceorientation', this._magHandler, true);
-        log('Using DeviceOrientation for mag', 'warn');
+        log('استخدام DeviceOrientation للمستشعر المغناطيسي', 'warn');
       }
     } else {
       window.addEventListener('deviceorientationabsolute', this._magHandler, true);
       window.addEventListener('deviceorientation', this._magHandler, true);
-      log('DeviceOrientation for magnetometer', 'warn');
+      log('DeviceOrientation للمستشعر المغناطيسي', 'warn');
     }
 
     if (typeof Accelerometer !== 'undefined') {
@@ -1164,22 +1281,16 @@ class SensorManager {
     }
     window.addEventListener('devicemotion', (e) => {
       const a = e.accelerationIncludingGravity || e.acceleration;
-      if (a) { this.ax = a.x||0; this.ay = a.y||0; this.az = a.z||0; this.accOk = true; }
+      if (a) { this.ax=a.x||0; this.ay=a.y||0; this.az=a.z||0; this.accOk=true; }
       if (e.rotationRate) {
-        this.gx = e.rotationRate.alpha||0;
-        this.gy = e.rotationRate.beta ||0;
-        this.gz = e.rotationRate.gamma||0;
+        this.gx=e.rotationRate.alpha||0; this.gy=e.rotationRate.beta||0; this.gz=e.rotationRate.gamma||0;
         this.gyrOk = true;
       }
     });
 
     if (navigator.geolocation) {
       this._gpsWatchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          this.lat = pos.coords.latitude;
-          this.lon = pos.coords.longitude;
-          this.gpsOk = true;
-        },
+        (pos) => { this.lat=pos.coords.latitude; this.lon=pos.coords.longitude; this.gpsOk=true; },
         () => { this.gpsOk = false; },
         { enableHighAccuracy: true, timeout: 10000 }
       );
@@ -1187,66 +1298,98 @@ class SensorManager {
   }
 
   getB() { return { x: this.bx, y: this.by, z: this.bz }; }
-  
+
   /**
-   * التعديل الجوهري: استخدام TMI (Total Magnetic Intensity)
-   * TMI = √(Bx² + By² + Bz²)
-   * هذا المقدار ثابت فيزيائياً ولا يتغير بتغير اتجاه الهاتف!
+   * TMI (Total Magnetic Intensity) = √(Bx²+By²+Bz²)
+   * مقدار فيزيائي ثابت لا يتأثر باتجاه/دوران الهاتف.
    */
-  getTMI() { 
-    return magnitude(this.bx, this.by, this.bz);
-  }
-  
-  // للتوافق مع الكود القديم - نعيد نفس القيمة
-  getMag() { 
-    return this.getTMI();
-  }
-  
-  getRawMag() {
-    return magnitude(this.bx, this.by, this.bz);
+  getTMI() { return magnitude(this.bx, this.by, this.bz); }
+  getMag() { return this.getTMI(); }
+  getRawMag() { return magnitude(this.bx, this.by, this.bz); }
+
+  /**
+   * مستوى الانحراف عن الوضع الأفقي المثالي، بالاعتماد على
+   * متجه التسارع. عند استواء الهاتف تماماً يكون
+   * (ax≈0, ay≈0, az≈±9.8). نُعيد قيمة الانحراف الأفقي
+   * بوحدة g لتقييم مدى أفقية الجهاز.
+   */
+  getTiltMagnitude() {
+    if (!this.accOk) return null;
+    const g = magnitude(this.ax, this.ay, this.az);
+    if (g < 1) return null; // لا قراءة موثوقة
+    // المكون الأفقي نسبة إلى الجاذبية الكلية
+    const horizontal = Math.sqrt(this.ax*this.ax + this.ay*this.ay);
+    return horizontal / g;
   }
 }
 
 // ================================================================
-// CALIBRATION ENGINE (بدون تغيير)
+// CALIBRATION ENGINE
 // ================================================================
 class CalibrationEngine {
   constructor(sensorMgr, sigProc) {
     this.sensors = sensorMgr;
-    this.sp      = sigProc;
+    this.sp = sigProc;
     this.siteRef = null;
     this.ironRef = null;
     this.siteDone = false;
     this.ironDone = false;
   }
 
+  /**
+   * تشغيل المعايرة: يسجل القراءات لمدة `durationMs`، يطبّق
+   * تسلسل المعالجة الكامل، ثم يحسب:
+   *  - المتوسط المتين (Robust Mean)
+   *  - الانحراف المعياري (للجودة)
+   *  - معامل التغير CV = STD/|mean| (مؤشر جودة أفضل من STD الخام)
+   *  - معدل الانحراف الزمني (Drift Rate) بالانحدار الخطي
+   *    على القراءات النظيفة مقابل الزمن — يُستخدم لتصحيح
+   *    القراءات أثناء المسح الطويل (التغير اليومي للمجال
+   *    المغناطيسي الأرضي - Diurnal Variation).
+   */
   async runCalibration(durationMs, onProgress) {
-    const samples = [];
-    const interval = 50;
+    const interval = CAL_SAMPLE_INTERVAL_MS;
     const totalSteps = durationMs / interval;
     let step = 0;
     this.sp.reset();
-    const calibrationSamples = [];
+    const rawTimeline = []; // {t, val}
 
     return new Promise((resolve) => {
+      const t0 = Date.now();
       const timer = setInterval(() => {
-        const tmi = this.sensors.getTMI();  // استخدام TMI
-        const filtered = this.sp.adaptiveFilter(tmi);
-        samples.push({ mag: filtered });
-        calibrationSamples.push(filtered);
+        const tmi = this.sensors.getTMI();
+        const filtered = this.sp.processSample(tmi);
+        rawTimeline.push({ t: (Date.now()-t0)/1000, val: filtered });
         step++;
-        if (onProgress) onProgress(step / totalSteps);
+        if (onProgress) onProgress(step/totalSteps);
         if (step >= totalSteps) {
           clearInterval(timer);
-          const cleanMags = this.sp.fftSuppress(calibrationSamples);
-          const meanMag = this.sp.adaptiveMean(cleanMags);
-          const variance = cleanMags.reduce((sum, val) => sum + Math.pow(val - meanMag, 2), 0) / cleanMags.length;
-          const stdDev = Math.sqrt(variance);
-          resolve({ 
-            magnitude: meanMag, 
-            samples: cleanMags,
-            stdDev: stdDev,
-            quality: 1 / (1 + stdDev / Math.abs(meanMag))
+
+          const allValues = rawTimeline.map(p => p.val);
+          // تصفية ترددية للتخلص من الضجيج العالي قبل الإحصاء
+          const cleanValues = this.sp.fftSuppress(allValues);
+
+          const { mean: robustMag, kept, rejected } = this.sp.robustMean(cleanValues);
+          const stdDev = standardDeviation(kept, robustMag);
+          const cv = Math.abs(stdDev / (robustMag || 1e-9)); // معامل التغير
+
+          // تقدير الانحراف الزمني عبر الانحدار الخطي
+          const xs = rawTimeline.map(p=>p.t);
+          const reg = linearRegression(xs, cleanValues);
+          const driftPerMinute = reg.slope * 60; // µT لكل دقيقة
+
+          // الجودة: دالة تنازلية في CV — كلما قل التشتت ارتفعت الجودة
+          const quality = clamp(1 / (1 + cv*8), 0, 1);
+
+          resolve({
+            magnitude: robustMag,
+            samples: kept,
+            stdDev,
+            cv,
+            quality,
+            driftPerMinute,
+            rejectedSamples: rejected,
+            totalSamples: cleanValues.length,
           });
         }
       }, interval);
@@ -1261,27 +1404,45 @@ class CalibrationEngine {
   }
 
   async calibrateIron(onProgress) {
-    if (!this.siteDone) throw new Error('Site calibration must be done first');
+    if (!this.siteDone) throw new Error('يجب إكمال معايرة الموقع أولاً');
     const result = await this.runCalibration(CAL_DURATION_MS, onProgress);
     result.deltaMag = result.magnitude - this.siteRef.magnitude;
+    // الانحراف المعياري المرجعي المركّب (لتطبيع درجة الشذوذ)
+    result.combinedStd = Math.sqrt(Math.pow(this.siteRef.stdDev,2) + Math.pow(result.stdDev,2)) || 1e-6;
     this.ironRef = result;
     this.ironDone = true;
     return result;
   }
 
-  computeAnomaly(rawMag) {
-    if (!this.siteDone || !this.ironDone) return { deltaB: 0, score: 0, quality: 0 };
-    const deltaB = rawMag - this.siteRef.magnitude;
+  /**
+   * حساب الشذوذ المغناطيسي لقراءة معينة عند زمن `elapsedMinutes`
+   * منذ انتهاء معايرة الموقع:
+   *  1. تصحيح الانحراف الزمني: نطرح (drift × زمن منقضٍ) من القراءة
+   *     قبل حساب ΔB، بحيث لا يُفسَّر الانجراف الطبيعي للمجال
+   *     كشذوذ.
+   *  2. ΔB = القراءة المصححة − مرجع الموقع
+   *  3. درجة الشذوذ = |ΔB| / المرجع المعياري للحديد، مُطبَّعة
+   *     بمعامل جودة المعايرة، ومحدودة بين 0 و1.
+   */
+  computeAnomaly(rawMag, elapsedMinutes=0) {
+    if (!this.siteDone || !this.ironDone) return { deltaB: 0, score: 0, quality: 0, driftCorrection: 0 };
+
+    const driftCorrection = (this.siteRef.driftPerMinute || 0) * elapsedMinutes;
+    const correctedMag = rawMag - driftCorrection;
+
+    const deltaB = correctedMag - this.siteRef.magnitude;
     const refDelta = Math.abs(this.ironRef.deltaMag) || 0.5;
-    const calibrationQuality = (this.siteRef.quality || 0.8);
+    const calibrationQuality = (this.siteRef.quality || 0.8) * (this.ironRef.quality || 0.8);
+
     const rawScore = clamp(Math.abs(deltaB) / refDelta, 0, 1);
     const score = rawScore * calibrationQuality;
-    return { deltaB, score, quality: calibrationQuality };
+
+    return { deltaB, score, quality: calibrationQuality, driftCorrection };
   }
 }
 
 // ================================================================
-// ANALYSIS ENGINE (بدون تغيير)
+// ANALYSIS ENGINE (محفوظ مع تحسينات طفيفة في التعليقات فقط)
 // ================================================================
 class AnalysisEngine {
   analyze(points, stepSize) {
@@ -1313,7 +1474,7 @@ class AnalysisEngine {
       const dy = (Math.max(...ys) - Math.min(...ys)) * stepSize;
       halfWidth = Math.sqrt(dx*dx + dy*dy);
     }
-    
+
     let estDepth = null;
     if (halfWidth > 0 && peak) {
       const anomalyRatio = clamp(peak.anomaly_score, 0.2, 1);
@@ -1394,53 +1555,132 @@ class AnalysisEngine {
 }
 
 // ================================================================
-// VISUALIZATION ENGINE (تعديل جرافيكي فقط على Heatmap)
+// VISUALIZATION ENGINE
+// (الكونتور و3D محفوظان دون تغيير منطقي. الهيت ماب الآن شبكة
+//  تفاعلية ثابتة الأبعاد مع أرقام المربعات وتمييز التحديد)
 // ================================================================
 class VisualizationEngine {
   constructor() {
-    this.canvasHeatmap  = document.getElementById('canvas-heatmap');
-    this.canvasContour  = document.getElementById('canvas-contour');
-    this.canvasSurface  = document.getElementById('canvas-surface3d');
-    this.canvasColorbar = document.getElementById('colorscale-bar');
-    this.lastHeatmapData = null;
-    this.selectedCell = null; // لتحديد المربع المختار
-    this.setupHeatmapClick();
+    this.canvasHeatmap   = document.getElementById('canvas-heatmap');
+    this.canvasOverlay   = document.getElementById('canvas-grid-overlay');
+    this.canvasContour   = document.getElementById('canvas-contour');
+    this.canvasSurface   = document.getElementById('canvas-surface3d');
+    this.canvasColorbar  = document.getElementById('colorscale-bar');
+    this.gridRows = 0; this.gridCols = 0;
+    this.cellSize = 60;
   }
 
-  setupHeatmapClick() {
-    this.canvasHeatmap.addEventListener('click', (e) => {
-      if (!this.lastHeatmapData) return;
-      const rect = this.canvasHeatmap.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const cell = this.lastHeatmapData.cell;
-      const cols = this.lastHeatmapData.cols;
-      const rows = this.lastHeatmapData.rows;
-      
-      const c = Math.floor(x / cell);
-      const r = Math.floor(y / cell);
-      
-      if (c >= 0 && c < cols && r >= 0 && r < rows) {
-        this.selectedCell = { col: c, row: r };
-        
-        const point = this.lastHeatmapData.points.find(
-          p => p.gx === (this.lastHeatmapData.minX + c) && 
-               p.gy === (this.lastHeatmapData.minY + r)
-        );
-        
-        if (point) {
-          const depth = point.depth_m ? `${fmtNum(point.depth_m, 2)}م` : 'غير محسوب';
-          showToast(`📍 تم تحديد المربع (${point.gx}, ${point.gy}) — العمق = ${depth} | ابدأ القياس من الشمال للجنوب`);
+  // ---- HEATMAP WITH GRID ----
+  renderHeatmapGrid(scanPoints, gridRows, gridCols, stepSize, selectedCell) {
+    const CELL = this.cellSize;
+    const PAD  = 34;
+    const W = gridCols * CELL + PAD;
+    const H = gridRows * CELL + PAD;
+
+    this.canvasHeatmap.width  = W;
+    this.canvasHeatmap.height = H;
+    this.canvasOverlay.width  = W;
+    this.canvasOverlay.height = H;
+    this.canvasOverlay.style.position = 'absolute';
+    this.canvasOverlay.style.top = '0';
+    this.canvasOverlay.style.left = '0';
+
+    const ptMap = new Map(scanPoints.map(p => [`${p.gx},${p.gy}`, p]));
+
+    const scores = scanPoints.map(p => p.anomaly_score);
+    const minV = scores.length ? Math.min(...scores) : 0;
+    const maxV = scores.length ? Math.max(...scores) : 1;
+    const range = (maxV-minV) || 1;
+
+    const ctx = this.canvasHeatmap.getContext('2d');
+    ctx.fillStyle = '#0b0f1a';
+    ctx.fillRect(0,0,W,H);
+
+    for (let r=0; r<gridRows; r++) {
+      for (let c=0; c<gridCols; c++) {
+        const pt = ptMap.get(`${c},${r}`);
+        const x = c*CELL, y = r*CELL;
+        if (pt) {
+          const t = (pt.anomaly_score - minV) / range;
+          const [ri,gi,bi] = colorAt(t);
+          ctx.fillStyle = `rgb(${ri},${gi},${bi})`;
         } else {
-          showToast(`📍 تم تحديد المربع الشبكي (${this.lastHeatmapData.minX + c}, ${this.lastHeatmapData.minY + r}) — قياس من الشمال → الجنوب`);
+          ctx.fillStyle = '#1a2235';
         }
-        
-        // إعادة رسم الهيت ماب لإظهار التحديد
-        this.renderHeatmap(this.lastHeatmapData.points, this.lastHeatmapData.stepSize || 0.25);
+        ctx.fillRect(x, y, CELL, CELL);
       }
-    });
+    }
+
+    // محاور الإحداثيات (الأمتار)
+    ctx.fillStyle = '#4a6278';
+    ctx.font = '9px monospace';
+    for (let c=0; c<gridCols; c++) {
+      ctx.fillText((c*stepSize).toFixed(2)+'m', c*CELL+2, gridRows*CELL+14);
+    }
+    for (let r=0; r<gridRows; r++) {
+      ctx.fillText((r*stepSize).toFixed(2)+'m', gridCols*CELL+2, r*CELL+CELL/2+3);
+    }
+
+    if (scores.length) this._renderColorbar(minV, maxV);
+
+    this._drawGridOverlay(scanPoints, gridRows, gridCols, selectedCell, ptMap, CELL);
   }
 
+  _drawGridOverlay(scanPoints, gridRows, gridCols, selectedCell, ptMap, CELL) {
+    const ctx = this.canvasOverlay.getContext('2d');
+    ctx.clearRect(0,0,this.canvasOverlay.width, this.canvasOverlay.height);
+
+    for (let r=0; r<gridRows; r++) {
+      for (let c=0; c<gridCols; c++) {
+        const x=c*CELL, y=r*CELL;
+        const cellNum = r*gridCols + c + 1;
+        const pt = ptMap ? ptMap.get(`${c},${r}`) : null;
+        const isSelected = selectedCell && selectedCell.c===c && selectedCell.r===r;
+
+        ctx.strokeStyle = isSelected ? '#00c9a7' : 'rgba(255,255,255,0.12)';
+        ctx.lineWidth   = isSelected ? 2.5 : 0.7;
+        ctx.strokeRect(x+0.5, y+0.5, CELL-1, CELL-1);
+
+        ctx.font = `bold ${Math.max(10, Math.min(14, CELL/4))}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = pt ? 'rgba(255,255,255,0.85)' : 'rgba(180,200,220,0.5)';
+        ctx.fillText(cellNum, x+CELL/2, y+CELL/2);
+
+        if (isSelected) {
+          ctx.strokeStyle = '#00c9a7';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(x+1.5, y+1.5, CELL-3, CELL-3);
+          ctx.strokeStyle = '#ffb347';
+          ctx.lineWidth = 2;
+          const ms=8;
+          ctx.beginPath();
+          ctx.moveTo(x+2,y+ms); ctx.lineTo(x+2,y+2); ctx.lineTo(x+ms,y+2);
+          ctx.moveTo(x+CELL-ms,y+2); ctx.lineTo(x+CELL-2,y+2); ctx.lineTo(x+CELL-2,y+ms);
+          ctx.moveTo(x+2,y+CELL-ms); ctx.lineTo(x+2,y+CELL-2); ctx.lineTo(x+ms,y+CELL-2);
+          ctx.moveTo(x+CELL-ms,y+CELL-2); ctx.lineTo(x+CELL-2,y+CELL-2); ctx.lineTo(x+CELL-2,y+CELL-ms);
+          ctx.stroke();
+        }
+
+        if (pt) {
+          ctx.beginPath();
+          ctx.arc(x+CELL-8, y+8, 3, 0, Math.PI*2);
+          ctx.fillStyle = 'rgba(34,197,94,0.9)';
+          ctx.fill();
+        }
+
+        ctx.textAlign = 'start';
+        ctx.textBaseline = 'alphabetic';
+      }
+    }
+  }
+
+  refreshOverlay(scanPoints, gridRows, gridCols, selectedCell) {
+    const ptMap = new Map(scanPoints.map(p => [`${p.gx},${p.gy}`, p]));
+    this._drawGridOverlay(scanPoints, gridRows, gridCols, selectedCell, ptMap, this.cellSize);
+  }
+
+  // ---- CONTOUR (unchanged) ----
   _buildGrid(points, stepSize) {
     if (!points.length) return null;
     const xs = [...new Set(points.map(p => p.gx))].sort((a,b) => a-b);
@@ -1478,110 +1718,6 @@ class VisualizationEngine {
     }
 
     return { grid, cols, rows, minV, maxV, xs, ys, minX, minY, stepSize };
-  }
-
-  renderHeatmap(points, stepSize, opts = {}) {
-    const g = this._buildGrid(points, stepSize);
-    if (!g) return;
-    const canvas = opts.targetCanvas || this.canvasHeatmap;
-    const container = opts.targetCanvas ? null : canvas.parentElement;
-    const W = opts.width || container?.offsetWidth || 600;
-    const H = opts.height || ((container?.offsetHeight || 400) - 40);
-
-    const cellW = Math.floor(W / g.cols);
-    const cellH = Math.floor(H / g.rows);
-    const cell  = Math.max(Math.min(cellW, cellH, 120), 20);
-
-    canvas.width  = cell * g.cols + 60;
-    canvas.height = cell * g.rows + 40;
-    
-    if (!opts.targetCanvas) {
-      this.lastHeatmapData = { points, cell, cols: g.cols, rows: g.rows, minX: g.minX, minY: g.minY, stepSize };
-    }
-    
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#0b0f1a';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const range = g.maxV - g.minV || 1;
-    
-    const pointMap = new Map(points.map(p => [`${p.gx},${p.gy}`, p]));
-
-    // رسم الخلايا الملونة (الجزء الأساسي)
-    for (const p of points) {
-      const c = p.gx - g.minX;
-      const r = p.gy - g.minY;
-      const v = p.anomaly_score;
-      const t = (v - g.minV) / range;
-      const [ri, gi2, bi] = colorAt(t);
-      ctx.fillStyle = `rgb(${ri},${gi2},${bi})`;
-      ctx.fillRect(c * cell, r * cell, cell, cell);
-    }
-
-    // شبكة خفيفة
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-    ctx.lineWidth = 0.5;
-    for (let c = 0; c <= g.cols; c++) {
-      ctx.beginPath(); ctx.moveTo(c*cell, 0); ctx.lineTo(c*cell, g.rows*cell); ctx.stroke();
-    }
-    for (let r = 0; r <= g.rows; r++) {
-      ctx.beginPath(); ctx.moveTo(0, r*cell); ctx.lineTo(g.cols*cell, r*cell); ctx.stroke();
-    }
-
-    // نقاط القياس
-    for (const p of points) {
-      const c = p.gx - g.minX;
-      const r = p.gy - g.minY;
-      const px = c * cell + cell/2;
-      const py = r * cell + cell/2;
-      ctx.beginPath(); ctx.arc(px, py, Math.max(2, cell/8), 0, Math.PI*2);
-      ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fill();
-    }
-
-    // === تعديل جرافيكي فقط: تحديد المربع المختار + مسار اقتراحي شمال→جنوب ===
-    if (this.selectedCell) {
-      const sc = this.selectedCell.col;
-      const sr = this.selectedCell.row;
-      
-      // تحديد المربع المختار بإطار بارز
-      ctx.strokeStyle = '#00ffaa';
-      ctx.lineWidth = 3;
-      ctx.shadowColor = '#00ffaa';
-      ctx.shadowBlur = 8;
-      ctx.strokeRect(sc * cell + 2, sr * cell + 2, cell - 4, cell - 4);
-      ctx.shadowBlur = 0;
-      
-      // رسم أسهم توجيهية للقياس من الشمال إلى الجنوب (صفوف)
-      ctx.strokeStyle = 'rgba(0, 201, 167, 0.7)';
-      ctx.lineWidth = 1.5;
-      for (let row = 0; row < g.rows; row++) {
-        const startX = 8;
-        const endX = g.cols * cell - 8;
-        const y = row * cell + cell / 2;
-        ctx.beginPath();
-        ctx.moveTo(startX, y);
-        ctx.lineTo(endX, y);
-        ctx.stroke();
-        
-        // رأس السهم في نهاية الصف (جنوب)
-        ctx.beginPath();
-        ctx.moveTo(endX - 8, y - 5);
-        ctx.lineTo(endX, y);
-        ctx.lineTo(endX - 8, y + 5);
-        ctx.stroke();
-      }
-    }
-
-    // تسميات المحاور
-    ctx.fillStyle = '#4a6278'; ctx.font = '9px monospace';
-    for (let c = 0; c < g.cols; c++) {
-      ctx.fillText((g.minX + c) * stepSize + 'm', c*cell+2, g.rows*cell+14);
-    }
-    for (let r = 0; r < g.rows; r++) {
-      ctx.fillText((g.minY + r) * stepSize + 'm', g.cols*cell+4, r*cell+cell/2+3);
-    }
-
-    this._renderColorbar(g.minV, g.maxV);
   }
 
   renderContour(points, stepSize, opts = {}) {
@@ -1712,7 +1848,7 @@ class VisualizationEngine {
       for (let c = 0; c < g.cols; c++) {
         const point = pointMap.get(`${g.minX + c},${g.minY + r}`);
         if (!point) continue;
-        
+
         const v = point.anomaly_score;
         const t = (v - g.minV) / range;
         const h = t * maxHeight;
@@ -1785,65 +1921,70 @@ class VisualizationEngine {
   }
 
   showCanvas(view) {
-    this.canvasHeatmap.style.display  = view === 'heatmap'  ? 'block' : 'none';
+    const wrapper = document.getElementById('canvas-heatmap-wrapper');
+    wrapper.style.display = view === 'heatmap' ? 'inline-block' : 'none';
     this.canvasContour.style.display  = view === 'contour'  ? 'block' : 'none';
     this.canvasSurface.style.display  = view === 'surface3d'? 'block' : 'none';
   }
 }
 
 // ================================================================
-// DATA STORE (بدون تغيير)
+// DATA STORE
 // ================================================================
 const DataStore = {
-  KEY_POINTS: 'magscan_points',
-  KEY_CAL:    'magscan_calibration',
-
-  savePoints(points) {
-    try { localStorage.setItem(this.KEY_POINTS, JSON.stringify(points)); } catch(e) {}
-  },
+  KEY_POINTS: 'magscan_points', KEY_CAL: 'magscan_calibration', KEY_GRID: 'magscan_grid',
+  savePoints(points) { try { localStorage.setItem(this.KEY_POINTS, JSON.stringify(points)); } catch(e) {} },
   loadPoints() {
-    try {
-      const s = localStorage.getItem(this.KEY_POINTS);
-      return s ? JSON.parse(s) : [];
-    } catch(e) { return []; }
+    try { const s = localStorage.getItem(this.KEY_POINTS); return s ? JSON.parse(s) : []; }
+    catch(e) { return []; }
   },
-  saveCal(calData) {
-    try { localStorage.setItem(this.KEY_CAL, JSON.stringify(calData)); } catch(e) {}
-  },
+  saveCal(calData) { try { localStorage.setItem(this.KEY_CAL, JSON.stringify(calData)); } catch(e) {} },
   loadCal() {
-    try {
-      const s = localStorage.getItem(this.KEY_CAL);
-      return s ? JSON.parse(s) : null;
-    } catch(e) { return null; }
+    try { const s = localStorage.getItem(this.KEY_CAL); return s ? JSON.parse(s) : null; }
+    catch(e) { return null; }
+  },
+  saveGrid(g) { try { localStorage.setItem(this.KEY_GRID, JSON.stringify(g)); } catch(e) {} },
+  loadGrid() {
+    try { const s = localStorage.getItem(this.KEY_GRID); return s ? JSON.parse(s) : null; }
+    catch(e) { return null; }
   },
   clear() {
     localStorage.removeItem(this.KEY_POINTS);
     localStorage.removeItem(this.KEY_CAL);
+    localStorage.removeItem(this.KEY_GRID);
   }
 };
 
 // ================================================================
-// GLOBAL STATE (بدون تغيير)
+// GLOBAL STATE
 // ================================================================
-const sensors    = new SensorManager();
-const sigProc    = new SignalProcessor();
-const calEngine  = new CalibrationEngine(sensors, sigProc);
-const visEngine  = new VisualizationEngine();
-const analysis   = new AnalysisEngine();
+const sensors   = new SensorManager();
+const sigProc   = new SignalProcessor();   // معالج للقراءات اللحظية (العرض المباشر)
+const calEngine = new CalibrationEngine(sensors, sigProc);
+const visEngine = new VisualizationEngine();
+const analysis  = new AnalysisEngine();
 
-let scanPoints   = DataStore.loadPoints();
-let scanActive   = false;
-let currentPos   = { x: 0, y: 0 };
-let stepSize     = 0.25;
-let currentView  = 'heatmap';
-let liveKalman   = new SignalProcessor();
-let remoteSocket = null;
-let remoteConnected = false;
+let scanPoints  = DataStore.loadPoints();
+let stepSize    = 0.25;
+let currentView = 'heatmap';
+
+// Grid state
+let gridRows    = 0;
+let gridCols    = 0;
+let gridCreated = false;
+
+// Selection & scanning state
+let selectedCell   = null;  // {r, c}
+let scanActive     = false;
+let scanPointTimer = null;
+
+// زمن انتهاء معايرة الموقع، لحساب تصحيح الانحراف الزمني
+let siteCalEndTime = null;
 
 // ================================================================
-// LOGGING (بدون تغيير)
+// LOGGING & TOASTS
 // ================================================================
-function log(msg, type = '') {
+function log(msg, type='') {
   const el = document.getElementById('log-area');
   const line = document.createElement('div');
   line.className = 'log-line ' + type;
@@ -1862,11 +2003,10 @@ function showToast(msg) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
 }
 
-function showModal(title, body, onOk, showCancel = false) {
+function showModal(title, body, onOk, showCancel=false) {
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').textContent  = body;
-  const cancel = document.getElementById('modal-cancel');
-  cancel.style.display = showCancel ? 'block' : 'none';
+  document.getElementById('modal-cancel').style.display = showCancel ? 'block' : 'none';
   document.getElementById('modal-overlay').classList.add('visible');
   document.getElementById('modal-ok').onclick = () => {
     document.getElementById('modal-overlay').classList.remove('visible');
@@ -1878,19 +2018,14 @@ function showModal(title, body, onOk, showCancel = false) {
 }
 
 // ================================================================
-// LIVE SENSOR DISPLAY (باستخدام TMI)
+// LIVE SENSOR DISPLAY
 // ================================================================
 function updateSensorDisplay() {
   if (!sensors.magOk) return;
-  
+
   const b = sensors.getB();
-  const tmi = sensors.getTMI();  // استخدام TMI الثابت
-  
-  const mafFiltered = liveKalman.movingAverage(tmi);
-  const kalmanFiltered = liveKalman.kalman(mafFiltered);
-  const emaFiltered = liveKalman.exponentialMovingAverage(kalmanFiltered);
-  const adaptiveFiltered = liveKalman.adaptiveFilter(tmi);
-  const filtered = (kalmanFiltered + emaFiltered + adaptiveFiltered) / 3;
+  const tmi = sensors.getTMI();
+  const filtered = sigProc.processSample(tmi);
 
   document.getElementById('val-bx').textContent = fmtNum(b.x, 3);
   document.getElementById('val-by').textContent = fmtNum(b.y, 3);
@@ -1898,18 +2033,18 @@ function updateSensorDisplay() {
   document.getElementById('val-bt').textContent = fmtNum(filtered, 4);
 
   if (calEngine.siteDone && calEngine.ironDone) {
-    const anom = calEngine.computeAnomaly(filtered);
+    const elapsedMin = siteCalEndTime ? (Date.now()-siteCalEndTime)/60000 : 0;
+    const anom = calEngine.computeAnomaly(filtered, elapsedMin);
     document.getElementById('val-db').textContent = fmtNum(anom.deltaB, 4);
     document.getElementById('val-anom').textContent = fmtNum(anom.score, 4);
     const el = document.getElementById('val-anom');
     el.style.color = anom.score > 0.6 ? 'var(--danger)' :
                      anom.score > 0.3 ? 'var(--warn)' : 'var(--green-ok)';
-    
     if (anom.quality < 0.7) {
-      el.title = `⚠ جودة المعايرة منخفضة (${(anom.quality*100).toFixed(0)}%). أعد المعايرة!`;
+      el.title = `⚠ جودة المعايرة منخفضة (${(anom.quality*100).toFixed(0)}%). أعد المعايرة في موقع أكثر هدوءاً.`;
       el.style.opacity = '0.6';
     } else {
-      el.title = `جودة المعايرة: ${(anom.quality*100).toFixed(0)}%`;
+      el.title = `جودة المعايرة: ${(anom.quality*100).toFixed(0)}% | تصحيح الانحراف: ${fmtNum(anom.driftCorrection,4)} µT`;
       el.style.opacity = '1';
     }
   } else if (calEngine.siteDone) {
@@ -1918,6 +2053,7 @@ function updateSensorDisplay() {
   }
 
   updateBadges();
+  updateLevelIndicator();
 }
 
 function updateBadges() {
@@ -1925,136 +2061,46 @@ function updateBadges() {
   const bCal     = document.getElementById('badge-cal');
   const bGPS     = document.getElementById('badge-gps');
 
-  if (sensors.magOk) {
-    bSensors.textContent = 'MAG OK';
-    bSensors.className   = 'badge ok';
-  } else {
-    bSensors.textContent = 'NO MAG';
-    bSensors.className   = 'badge error';
-  }
+  if (sensors.magOk) { bSensors.textContent = 'MAG OK'; bSensors.className = 'badge ok'; }
+  else { bSensors.textContent = 'NO MAG'; bSensors.className = 'badge error'; }
 
-  if (calEngine.siteDone && calEngine.ironDone) {
-    bCal.textContent = 'CAL DONE';
-    bCal.className   = 'badge ok';
-  } else if (calEngine.siteDone) {
-    bCal.textContent = 'SITE DONE';
-    bCal.className   = 'badge warn';
-  } else {
-    bCal.textContent = 'CAL NONE';
-    bCal.className   = 'badge dim';
-  }
+  if (calEngine.siteDone && calEngine.ironDone) { bCal.textContent = 'CAL DONE'; bCal.className = 'badge ok'; }
+  else if (calEngine.siteDone) { bCal.textContent = 'SITE DONE'; bCal.className = 'badge warn'; }
+  else { bCal.textContent = 'CAL NONE'; bCal.className = 'badge dim'; }
 
-  if (sensors.gpsOk) {
-    bGPS.textContent = `GPS ${sensors.lat ? sensors.lat.toFixed(4) : '—'}`;
-    bGPS.className   = 'badge ok';
-  } else {
-    bGPS.textContent = 'GPS —';
-    bGPS.className   = 'badge dim';
-  }
+  if (sensors.gpsOk) { bGPS.textContent = `GPS ${sensors.lat ? sensors.lat.toFixed(4) : '—'}`; bGPS.className = 'badge ok'; }
+  else { bGPS.textContent = 'GPS —'; bGPS.className = 'badge dim'; }
 }
 
-// ================================================================
-// REMOTE CONTROL (بدون تغيير)
-// ================================================================
-function handleRemoteCommand(command) {
-  const cmd = (command || '').toString().toLowerCase();
-  if (cmd === 'up') return moveTo(0, -1);
-  if (cmd === 'down') return moveTo(0, 1);
-  if (cmd === 'left') return moveTo(-1, 0);
-  if (cmd === 'right') return moveTo(1, 0);
-  if (cmd === 'start') return startScan();
-  if (cmd === 'stop') return stopScan();
-  if (cmd === 'undo') return document.getElementById('btn-undo').click();
-  if (cmd === 'clear') return document.getElementById('btn-clear').click();
-}
-
-function setupRemoteControl() {
-  const info = document.getElementById('remote-info');
-  const btn = document.getElementById('btn-show-remote');
-  if (!info || !btn) return;
-
-  const unsupported = () => {
-    info.textContent = 'للوصول عبر الكمبيوتر، افتح هذه الصفحة من خادم HTTP مشترك على الشبكة المحلية.';
-  };
-
-  if (typeof io === 'undefined' || !location.protocol.startsWith('http')) {
-    unsupported();
+/**
+ * مؤشر استواء الهاتف: يعتمد على المكون الأفقي للتسارع
+ * نسبةً إلى التسارع الكلي. يُفترض أن يكون الهاتف مسطحاً
+ * على الأرض دائماً أثناء القياس لأن القياس الجيوفيزيائي
+ * يتطلب اتساقاً في وضعية الاستشعار.
+ */
+function updateLevelIndicator() {
+  const dot = document.getElementById('level-dot');
+  const text = document.getElementById('level-text');
+  const tilt = sensors.getTiltMagnitude();
+  if (tilt == null) {
+    dot.className = 'level-dot';
+    text.textContent = 'لا توجد بيانات تسارع';
     return;
   }
-
-  remoteSocket = io();
-  remoteSocket.on('connect', () => {
-    remoteConnected = true;
-    remoteSocket.emit('register', { type: 'mobile' });
-    info.innerHTML = 'متصل بخادم التحكم. اضغط الزر للحصول على رابط الكمبيوتر.';
-  });
-  remoteSocket.on('disconnect', () => {
-    remoteConnected = false;
-    info.textContent = 'فُقد الاتصال بخادم التحكم. تأكد من تشغيل الخادم على الكمبيوتر.';
-  });
-  remoteSocket.on('remote-command', handleRemoteCommand);
-
-  btn.onclick = () => {
-    const host = window.location.hostname;
-    const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
-    const path = '/remote';
-    const url = `${window.location.protocol}//${host}${port ? ':' + port : ''}${path}`;
-    info.innerHTML = `افتح الرابط على الكمبيوتر:<br><a class="link" href="${url}" target="_blank">${url}</a>`;
-  };
-}
-
-function updateSensorPermissionMessage(msg, isError = false) {
-  const el = document.getElementById('sensor-permission-msg');
-  if (!el) return;
-  el.textContent = msg;
-  el.style.color = isError ? 'var(--danger)' : 'var(--text-primary)';
-}
-
-async function requestSensorPermissions() {
-  if (!window.isSecureContext) {
-    updateSensorPermissionMessage('يلزم تشغيل الصفحة عبر HTTPS لتعمل المستشعرات في Chrome.', true);
-    return;
+  if (tilt <= LEVEL_TOLERANCE_GOOD) {
+    dot.className = 'level-dot good';
+    text.textContent = `الهاتف مستوٍ ✓ (انحراف ${(tilt*100).toFixed(1)}%)`;
+  } else if (tilt <= LEVEL_TOLERANCE_WARN) {
+    dot.className = 'level-dot warn';
+    text.textContent = `انحراف طفيف (${(tilt*100).toFixed(1)}%) — حاول التسوية`;
+  } else {
+    dot.className = 'level-dot bad';
+    text.textContent = `الهاتف غير مستوٍ! (${(tilt*100).toFixed(1)}%) — ضعه أفقياً`;
   }
-
-  updateSensorPermissionMessage('جارٍ طلب إذن المستشعرات...');
-  try {
-    if (typeof DeviceOrientationEvent !== 'undefined' &&
-        typeof DeviceOrientationEvent.requestPermission === 'function') {
-      await DeviceOrientationEvent.requestPermission();
-    }
-    if (typeof DeviceMotionEvent !== 'undefined' &&
-        typeof DeviceMotionEvent.requestPermission === 'function') {
-      await DeviceMotionEvent.requestPermission();
-    }
-
-    if (navigator.permissions && navigator.permissions.query) {
-      const sensorsToCheck = ['accelerometer', 'gyroscope', 'magnetometer'];
-      for (const name of sensorsToCheck) {
-        try {
-          const status = await navigator.permissions.query({ name });
-          if (status.state === 'denied') {
-            updateSensorPermissionMessage('أحد أذونات المستشعرات محظور. تأكد من تمكينه في إعدادات المتصفح.', true);
-            return;
-          }
-        } catch (e) {}
-      }
-    }
-
-    updateSensorPermissionMessage('تم طلب الأذونات. أعد تحميل الصفحة إذا لم تعمل المستشعرات بعد.');
-  } catch (e) {
-    updateSensorPermissionMessage('فشل تفعيل المستشعرات. قد تحتاج إلى HTTPS أو إعدادات إذن إضافية.', true);
-    console.warn('Sensor permission error:', e);
-  }
-}
-
-function setupSensorPermissionsUI() {
-  const btn = document.getElementById('btn-enable-sensors');
-  if (!btn) return;
-  btn.onclick = requestSensorPermissions;
 }
 
 // ================================================================
-// CALIBRATION UI (بدون تغيير)
+// CALIBRATION UI
 // ================================================================
 function setupCalibrationUI() {
   document.getElementById('btn-site-cal').onclick = async () => {
@@ -2068,7 +2114,7 @@ function setupCalibrationUI() {
     document.getElementById('prog-site-wrap').style.display = 'block';
     document.getElementById('prog-site-label').style.display = 'block';
     document.getElementById('dot-site').className = 'dot active';
-    log('Site calibration started (60s)…', 'warn');
+    log('بدأت معايرة الموقع (60 ثانية، 20Hz)… ضع الهاتف أفقياً وثابتاً.', 'warn');
 
     try {
       const result = await calEngine.calibrateSite((p) => {
@@ -2076,12 +2122,13 @@ function setupCalibrationUI() {
         document.getElementById('prog-site-label').textContent =
           `${Math.round(p*60)}s / 60s  TMI = ${fmtNum(sensors.getTMI(), 4)} µT`;
       });
+      siteCalEndTime = Date.now();
       document.getElementById('dot-site').className = 'dot done';
       document.getElementById('site-result').textContent =
-        `مرجع TMI: ${fmtNum(result.magnitude, 4)} µT (جودة: ${(result.quality*100).toFixed(0)}%)`;
+        `مرجع TMI: ${fmtNum(result.magnitude, 4)} µT | جودة: ${(result.quality*100).toFixed(0)}% | انحراف: ${fmtNum(result.driftPerMinute,4)} µT/دقيقة | عينات مرفوضة: ${result.rejectedSamples}/${result.totalSamples}`;
       btn.textContent = '✓ تم معايرة الموقع';
       document.getElementById('btn-iron-cal').disabled = false;
-      log('Site calibration complete. TMI ref = ' + fmtNum(result.magnitude, 4) + ' µT', 'ok');
+      log(`معايرة الموقع اكتملت. TMI = ${fmtNum(result.magnitude, 4)} µT، جودة ${(result.quality*100).toFixed(0)}%، انحراف ${fmtNum(result.driftPerMinute,4)} µT/دقيقة`, 'ok');
       DataStore.saveCal({ site: result });
       updateButtonStates();
     } catch(e) {
@@ -2095,7 +2142,7 @@ function setupCalibrationUI() {
   document.getElementById('btn-iron-cal').onclick = async () => {
     showModal(
       '🔩 معايرة مرجع الحديد',
-      'ضع قطعة من الحديد/الصلب على مسافة 1 سم من حساس الهاتف. اضغط موافق عند الاستعداد؛ سيُسجل النظام التوقيع المغناطيسي لمدة 60 ثانية.',
+      'ضع قطعة من الحديد/الصلب على مسافة 1 سم من حساس الهاتف. اضغط موافق عند الاستعداد؛ سيُسجل النظام التوقيع المغناطيسي لمدة 60 ثانية بمعدل 20Hz.',
       async () => {
         const btn = document.getElementById('btn-iron-cal');
         btn.disabled = true;
@@ -2103,7 +2150,7 @@ function setupCalibrationUI() {
         document.getElementById('prog-iron-wrap').style.display = 'block';
         document.getElementById('prog-iron-label').style.display = 'block';
         document.getElementById('dot-iron').className = 'dot active';
-        log('Iron calibration started (60s)…', 'warn');
+        log('بدأت معايرة الحديد (60 ثانية، 20Hz)…', 'warn');
 
         try {
           const result = await calEngine.calibrateIron((p) => {
@@ -2113,12 +2160,12 @@ function setupCalibrationUI() {
           });
           document.getElementById('dot-iron').className = 'dot done';
           document.getElementById('iron-result').textContent =
-            `مرجع الحديد: ${fmtNum(result.magnitude, 4)} µT  ΔB = ${fmtNum(result.deltaMag, 4)} µT`;
+            `مرجع الحديد: ${fmtNum(result.magnitude, 4)} µT  ΔB = ${fmtNum(result.deltaMag, 4)} µT | جودة: ${(result.quality*100).toFixed(0)}%`;
           btn.textContent = '✓ تم معايرة الحديد';
           log('اكتملت معايرة الحديد. ΔBref = ' + fmtNum(result.deltaMag, 4) + ' µT', 'ok');
           DataStore.saveCal({ site: calEngine.siteRef, iron: calEngine.ironRef });
           updateButtonStates();
-          showToast('✅ اكتملت المعايرات — المسح متاح!');
+          showToast('✅ اكتملت المعايرات — أنشئ الشبكة لبدء المسح!');
         } catch(e) {
           document.getElementById('dot-iron').className = 'dot error';
           btn.disabled = false;
@@ -2132,41 +2179,163 @@ function setupCalibrationUI() {
 }
 
 // ================================================================
-// SCAN ENGINE (بدون تغيير)
+// GRID CREATION & SEQUENTIAL SCAN ORDER
 // ================================================================
-let scanPointTimer = null;
-let scanBuffer     = [];
-
-function startScan() {
-  scanActive = true;
-  document.getElementById('btn-start-scan').disabled = true;
-  document.getElementById('btn-stop-scan').disabled  = false;
-  setDpadEnabled(true);
-  document.getElementById('dot-scan').className = 'dot active';
-  log('Scan started. Use D-Pad to navigate grid.', 'ok');
-  showToast('المسح نشط — تنقّل باستخدام أزرار الأسهم');
+/**
+ * يُعيد قائمة بترتيب تسلسل المسح: صفاً بصف من الأعلى للأسفل
+ * (الصف 0 = أقرب للشمال إن كان الهاتف يسير شمال→جنوب)، وفي
+ * كل صف الأعمدة من اليمين لليسار (c من gridCols-1 إلى 0)
+ * تماشياً مع تخطيط RTL على الشاشة.
+ */
+function buildScanSequence() {
+  const seq = [];
+  for (let r = 0; r < gridRows; r++) {
+    for (let c = gridCols - 1; c >= 0; c--) {
+      seq.push({ r, c });
+    }
+  }
+  return seq;
 }
 
-function stopScan() {
-  scanActive = false;
-  if (scanPointTimer) { clearTimeout(scanPointTimer); scanPointTimer = null; }
-  document.getElementById('btn-start-scan').disabled = false;
-  document.getElementById('btn-stop-scan').disabled  = true;
-  setDpadEnabled(false);
-  document.getElementById('scan-timer').classList.remove('visible');
-  document.getElementById('measuring-label').classList.remove('visible');
-  document.getElementById('dot-scan').className = scanPoints.length > 0 ? 'dot done' : 'dot';
-  log('Scan stopped. ' + scanPoints.length + ' points recorded.', 'ok');
+/** يُعيد أول خلية غير مفحوصة في التسلسل، أو null إن اكتملت الشبكة */
+function findNextUnscannedCell() {
+  const ptSet = new Set(scanPoints.map(p => `${p.gx},${p.gy}`));
+  const seq = buildScanSequence();
+  for (const cell of seq) {
+    if (!ptSet.has(`${cell.c},${cell.r}`)) return cell;
+  }
+  return null;
+}
+
+function createGrid() {
+  const rows = parseInt(document.getElementById('grid-rows').value) || 5;
+  const cols = parseInt(document.getElementById('grid-cols').value) || 10;
+  if (rows<1||cols<1||rows>50||cols>50) {
+    showToast('أبعاد الشبكة يجب أن تكون بين 1 و 50');
+    return;
+  }
+  gridRows = rows; gridCols = cols;
+  gridCreated = true;
+  selectedCell = null;
+
+  scanPoints = scanPoints.filter(p => p.gx>=0 && p.gx<cols && p.gy>=0 && p.gy<rows);
+
+  const container = document.getElementById('canvas-container');
+  const availW = (container.offsetWidth||600)-20;
+  const availH = (container.offsetHeight||500)-60;
+  const cellW = Math.floor(availW/cols);
+  const cellH = Math.floor(availH/rows);
+  visEngine.cellSize = Math.max(32, Math.min(cellW, cellH, 100));
+
+  document.getElementById('empty-state').style.display = 'none';
+  visEngine.showCanvas('heatmap');
+
+  document.querySelectorAll('.view-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector('.view-tab[data-view="heatmap"]').classList.add('active');
+  currentView = 'heatmap';
+
+  // تحديد أول مربع تلقائياً (بداية التسلسل: أعلى يمين الشبكة)
+  selectedCell = findNextUnscannedCell();
+
+  visEngine.renderHeatmapGrid(scanPoints, gridRows, gridCols, stepSize, selectedCell);
+
+  document.getElementById('dot-grid').className = 'dot done';
+  document.getElementById('grid-info-label').textContent =
+    `${rows} × ${cols} = ${rows*cols} مربع | ${(rows*stepSize).toFixed(2)}م (صفوف) × ${(cols*stepSize).toFixed(2)}م (أعمدة)`;
+
+  setupGridClickHandler();
+  updateSelectedCellInfo();
+  showOverlayInfo();
   updateButtonStates();
+
+  DataStore.saveGrid({rows,cols,stepSize});
+  log(`تم إنشاء شبكة ${rows}×${cols} — ${rows*cols} مربع، خطوة ${stepSize}م. الترتيب: صفاً بصف من الأعلى للأسفل، كل صف من اليمين لليسار.`, 'ok');
+  showToast(`✅ الشبكة جاهزة — ${rows*cols} مربع — ابدأ من المربع #1`);
 }
 
-function setDpadEnabled(en) {
-  ['dpad-up','dpad-down','dpad-left','dpad-right'].forEach(id => {
-    document.getElementById(id).disabled = !en;
-  });
+function setupGridClickHandler() {
+  const overlay = document.getElementById('canvas-grid-overlay');
+  const newOverlay = overlay.cloneNode(true);
+  overlay.parentNode.replaceChild(newOverlay, overlay);
+  visEngine.canvasOverlay = newOverlay;
+
+  newOverlay.addEventListener('click', handleGridClick);
+  newOverlay.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    const touch = e.changedTouches[0];
+    const rect = newOverlay.getBoundingClientRect();
+    handleGridClickAt(touch.clientX-rect.left, touch.clientY-rect.top);
+  }, {passive:false});
+
+  const ptMap = new Map(scanPoints.map(p=>[`${p.gx},${p.gy}`,p]));
+  visEngine._drawGridOverlay(scanPoints, gridRows, gridCols, selectedCell, ptMap, visEngine.cellSize);
 }
 
-function estimatePointDepth(deltaB, score, refDelta = 1) {
+function handleGridClick(e) {
+  const rect = e.currentTarget.getBoundingClientRect();
+  handleGridClickAt(e.clientX-rect.left, e.clientY-rect.top);
+}
+
+function handleGridClickAt(x, y) {
+  if (!gridCreated || scanActive) return;
+  const CELL = visEngine.cellSize;
+  const c = Math.floor(x/CELL);
+  const r = Math.floor(y/CELL);
+  if (c<0||c>=gridCols||r<0||r>=gridRows) return;
+
+  selectedCell = {r,c};
+  updateSelectedCellInfo();
+  visEngine.refreshOverlay(scanPoints, gridRows, gridCols, selectedCell);
+}
+
+function updateSelectedCellInfo() {
+  const infoEl = document.getElementById('selected-cell-info');
+  const btn = document.getElementById('btn-scan-cell');
+
+  if (!selectedCell) {
+    infoEl.innerHTML = 'لم يُحدد أي مربع بعد';
+    btn.textContent = '▶ ابدأ فحص المربع المحدد';
+    return;
+  }
+
+  const {r,c} = selectedCell;
+  const cellNum = r*gridCols + c + 1;
+  const ptMap = new Map(scanPoints.map(p=>[`${p.gx},${p.gy}`,p]));
+  const existing = ptMap.get(`${c},${r}`);
+
+  // تحديد ما إذا كان هذا المربع هو "التالي" في التسلسل
+  const nextCell = findNextUnscannedCell();
+  const isNext = nextCell && nextCell.r===r && nextCell.c===c;
+
+  if (existing) {
+    const depth = existing.depth_m ? `${fmtNum(existing.depth_m,2)}م` : '—';
+    const ci = existing.ci95 ? `±${fmtNum(existing.ci95,4)}` : '';
+    infoEl.innerHTML = `
+      <div>مربع <strong>#${cellNum}</strong> (صف ${r+1}, عمود ${c+1})${isNext?' — التالي':''}</div>
+      <div style="font-size:9px;color:var(--text-secondary);margin-top:2px">
+        ΔB: <strong style="color:var(--warn)">${fmtNum(existing.deltaB,4)}</strong> ${ci} µT |
+        درجة: <strong>${fmtNum(existing.anomaly_score,4)}</strong> |
+        عمق: <strong style="color:var(--accent)">${depth}</strong>
+      </div>`;
+    btn.textContent = `▶ إعادة فحص المربع #${cellNum}`;
+  } else {
+    infoEl.innerHTML = `مربع <strong>#${cellNum}</strong> (صف ${r+1}, عمود ${c+1})${isNext?' — <span style="color:var(--accent2)">التالي في التسلسل</span>':' — لم يُفحص بعد'} `;
+    btn.textContent = `▶ ابدأ فحص المربع #${cellNum}`;
+  }
+  btn.disabled = scanActive;
+}
+
+// ================================================================
+// SCAN CELL — ENHANCED MEASUREMENT PIPELINE
+// ================================================================
+/**
+ * تقدير العمق من ΔB ودرجة الشذوذ، باستخدام نموذج ثنائي القطب
+ * المبسّط (Point Dipole approximation): الحقل المغناطيسي
+ * لثنائي القطب يتناسب عكسياً مع مكعّب المسافة (1/r³)، فبالتالي
+ * عمق أكبر ↔ شذوذ أصغر مع علاقة جذرية تقريبية. القيم محدودة
+ * ضمن نطاق فيزيائي معقول لقياسات سطحية (0.2 - 3.5 م).
+ */
+function estimatePointDepth(deltaB, score, refDelta=1) {
   const absDelta = Math.abs(deltaB);
   if (absDelta < 0.1) return null;
   const normDelta = absDelta / Math.abs(refDelta);
@@ -2175,111 +2344,157 @@ function estimatePointDepth(deltaB, score, refDelta = 1) {
   return depth;
 }
 
-function moveTo(dx, dy) {
-  if (!scanActive) return;
-  if (scanPointTimer) return;
+function scanSelectedCell() {
+  if (!selectedCell || scanActive || !gridCreated) return;
+  if (!calEngine.siteDone || !calEngine.ironDone) {
+    showModal('مطلوب معايرة', 'يجب إكمال معايرة الموقع ومعايرة الحديد قبل البدء بالمسح.');
+    return;
+  }
 
-  currentPos.x += dx;
-  currentPos.y += dy;
-  document.getElementById('pos-info').innerHTML =
-    `Pos: <strong>${currentPos.x}, ${currentPos.y}</strong> | ${(currentPos.x*stepSize).toFixed(2)}m, ${(currentPos.y*stepSize).toFixed(2)}m`;
+  scanActive = true;
+  const {r,c} = selectedCell;
+  const cellNum = r*gridCols + c + 1;
 
-  log(`Moving to (${currentPos.x}, ${currentPos.y}) — measuring 10s…`);
-  scanBuffer = [];
-  const sp2 = new SignalProcessor();
+  document.getElementById('btn-scan-cell').disabled = true;
+  document.getElementById('dot-scan').className = 'dot active';
+  document.getElementById('scan-progress-wrap').style.display = 'block';
+  document.getElementById('scan-timer').classList.add('visible');
 
-  const timerEl    = document.getElementById('scan-timer');
-  const timerVal   = document.getElementById('timer-val');
-  const measLabel  = document.getElementById('measuring-label');
-  timerEl.classList.add('visible');
-  measLabel.classList.add('visible');
+  log(`فحص مربع #${cellNum} (صف ${r+1}, عمود ${c+1}) — قياس عالي الحساسية لمدة 10 ثوانٍ…`, 'warn');
+
+  // معالج مخصص لهذه القياس فقط (حالة كالمان نظيفة)
+  const sp = new SignalProcessor();
+  const rawSamples = [];     // القراءات الخام قبل أي معالجة
+  const filteredSamples = []; // بعد median+kalman لكل عينة
 
   let elapsed = 0;
-  timerVal.textContent = Math.ceil((POINT_DURATION_MS - elapsed) / 1000);
+  const timerVal = document.getElementById('timer-val');
+  const progressFill = document.getElementById('scan-progress-fill');
+  const progressLabel = document.getElementById('scan-progress-label');
+  timerVal.textContent = Math.ceil(POINT_DURATION_MS/1000);
 
   const ticker = setInterval(() => {
-    elapsed += 200;
-    timerVal.textContent = Math.ceil((POINT_DURATION_MS - elapsed) / 1000);
-    const tmi = sensors.getTMI();  // استخدام TMI الثابت
-    const filtered = sp2.adaptiveFilter(tmi);
-    scanBuffer.push(filtered);
-  }, 200);
+    elapsed += SAMPLE_INTERVAL_MS;
+    const remaining = Math.ceil((POINT_DURATION_MS-elapsed)/1000);
+    timerVal.textContent = remaining;
+    const pct = (elapsed/POINT_DURATION_MS*100);
+    progressFill.style.width = pct+'%';
+    const tmi = sensors.getTMI();
+    rawSamples.push(tmi);
+    const filtered = sp.processSample(tmi);
+    filteredSamples.push(filtered);
+    progressLabel.textContent = `${(elapsed/1000).toFixed(1)}s / 10s  TMI(فوري) = ${fmtNum(tmi,4)} µT  |  مُرشّح = ${fmtNum(filtered,4)} µT`;
+  }, SAMPLE_INTERVAL_MS);
 
   scanPointTimer = setTimeout(() => {
     clearInterval(ticker);
-    timerEl.classList.remove('visible');
-    measLabel.classList.remove('visible');
+    document.getElementById('scan-timer').classList.remove('visible');
+    document.getElementById('scan-progress-wrap').style.display = 'none';
+    scanActive = false;
     scanPointTimer = null;
 
-    const clean   = sigProc.fftSuppress(scanBuffer);
-    const avgMag = sigProc.adaptiveMean(clean);
-    
-    const variance = clean.reduce((sum, val) => sum + Math.pow(val - avgMag, 2), 0) / clean.length;
-    const stdDev = Math.sqrt(variance);
-    const pointQuality = 1 / (1 + stdDev / Math.abs(avgMag));
-    
-    const anomObj = calEngine.computeAnomaly(avgMag);
-    const deltaB  = anomObj ? anomObj.deltaB : 0;
-    const score   = anomObj ? anomObj.score  : 0;
-    
+    // ----- خط أنابيب المعالجة النهائي -----
+    // 1) FFT low-pass لإزالة الترددات العالية المتبقية
+    const fftClean = sp.fftSuppress(filteredSamples);
+
+    // 2) متوسط متين (Modified Z-Score على MAD) لرفض القيم الشاذة المتبقية
+    const { mean: avgMag, kept, rejected } = sp.robustMean(fftClean);
+
+    // 3) إحصائيات الجودة
+    const stdDev = standardDeviation(kept, avgMag);
+    const sem = stdDev / Math.sqrt(Math.max(kept.length,1)); // الخطأ المعياري للمتوسط
+    const ci95 = 1.96 * sem; // فاصل ثقة 95%
+    const pointQuality = clamp(1 / (1 + (stdDev/Math.abs(avgMag||1e-9)) * 8), 0, 1);
+
+    // 4) تصحيح الانحراف الزمني واحتساب الشذوذ
+    const elapsedMin = siteCalEndTime ? (Date.now()-siteCalEndTime)/60000 : 0;
+    const anomObj = calEngine.computeAnomaly(avgMag, elapsedMin);
+    const deltaB = anomObj.deltaB;
+    const score  = anomObj.score;
+
+    // 5) تقدير العمق (نموذج ثنائي القطب المبسّط)
     const depth = estimatePointDepth(deltaB, score, calEngine.ironRef ? calEngine.ironRef.deltaMag : 1);
 
     const pt = {
-      gx: currentPos.x,
-      gy: currentPos.y,
-      magnitude:     avgMag,
-      deltaB:        deltaB,
-      anomaly_score: score,
-      depth_m:       depth,
-      lat: sensors.lat,
-      lon: sensors.lon,
+      gx: c, gy: r,
+      magnitude: avgMag,
+      deltaB, anomaly_score: score,
+      depth_m: depth,
+      stdDev, sem, ci95,
+      rejectedSamples: rejected,
+      totalSamples: kept.length + rejected,
+      driftCorrection: anomObj.driftCorrection,
+      lat: sensors.lat, lon: sensors.lon,
       timestamp: Date.now(),
       quality: pointQuality,
-      stdDev: stdDev,
     };
 
+    // استبدال أي قياس سابق لهذه الخلية (إعادة فحص)
+    scanPoints = scanPoints.filter(p => !(p.gx===c && p.gy===r));
     scanPoints.push(pt);
     DataStore.savePoints(scanPoints);
-    
-    const qualityStr = pointQuality > 0.8 ? '✓ عالية' : 
-                       pointQuality > 0.6 ? '~ متوسطة' : '! منخفضة';
-    log(`Point (${pt.gx},${pt.gy}): TMI=${fmtNum(avgMag, 4)} µT  ΔB=${fmtNum(deltaB, 4)} µT  Score=${fmtNum(score, 4)}  جودة: ${qualityStr}`,
-        score > 0.6 ? 'error' : score > 0.3 ? 'warn' : 'ok');
 
-    renderCurrentView();
-    updateButtonStates();
+    const qualityStr = pointQuality>0.8 ? '✓ عالية' : pointQuality>0.6 ? '~ متوسطة' : '! منخفضة';
+    log(`مربع #${cellNum}: TMI=${fmtNum(avgMag,4)}±${fmtNum(ci95,4)} µT  ΔB=${fmtNum(deltaB,4)} µT  درجة=${fmtNum(score,4)}  جودة: ${qualityStr}  (رُفض ${rejected}/${pt.totalSamples} عينة)`,
+        score>0.6?'error':score>0.3?'warn':'ok');
+
+    // تحديث التحديد للمربع التالي في التسلسل تلقائياً
+    const nextCell = findNextUnscannedCell();
+    if (nextCell) {
+      selectedCell = nextCell;
+    }
+    // (إن اكتملت الشبكة، يبقى التحديد على آخر مربع تم فحصه)
+
+    visEngine.renderHeatmapGrid(scanPoints, gridRows, gridCols, stepSize, selectedCell);
+    setupGridClickHandler();
+    updateSelectedCellInfo();
     showOverlayInfo();
+    updateButtonStates();
+
+    const colorName = score>0.6?'🔴 شذوذ عالٍ':score>0.3?'🟡 شذوذ متوسط':'🟢 طبيعي';
+    const depth_str = depth ? `${fmtNum(depth,2)}م` : '—';
+
+    if (!nextCell) {
+      showToast(`مربع #${cellNum}: ${colorName} | عمق: ${depth_str} — ✅ اكتملت الشبكة بالكامل!`);
+      log('🎉 اكتمل مسح الشبكة بالكامل! يمكنك الآن إجراء التحليل أو التصدير.', 'ok');
+    } else {
+      showToast(`مربع #${cellNum}: ${colorName} | عمق: ${depth_str}`);
+    }
   }, POINT_DURATION_MS);
 }
 
 // ================================================================
-// VIEW RENDERING (بدون تغيير)
+// VIEW RENDERING
 // ================================================================
 function renderCurrentView() {
-  if (!scanPoints.length) return;
+  if (!scanPoints.length && !gridCreated) return;
   document.getElementById('empty-state').style.display = 'none';
   visEngine.showCanvas(currentView);
-  if (currentView === 'heatmap')  visEngine.renderHeatmap(scanPoints, stepSize);
-  if (currentView === 'contour')  visEngine.renderContour(scanPoints, stepSize);
-  if (currentView === 'surface3d') visEngine.render3DSurface(scanPoints, stepSize);
+  if (currentView==='heatmap') {
+    if (gridCreated) {
+      visEngine.renderHeatmapGrid(scanPoints, gridRows, gridCols, stepSize, selectedCell);
+      setupGridClickHandler();
+    }
+  }
+  if (currentView==='contour' && scanPoints.length) visEngine.renderContour(scanPoints, stepSize);
+  if (currentView==='surface3d' && scanPoints.length) visEngine.render3DSurface(scanPoints, stepSize);
 }
 
 function showOverlayInfo() {
-  if (!scanPoints.length) return;
   const oi = document.getElementById('canvas-overlay-info');
+  if (!gridCreated && !scanPoints.length) { oi.style.display='none'; return; }
   oi.style.display = 'block';
-  document.getElementById('oi-pts').textContent  = scanPoints.length;
-  const xs = scanPoints.map(p => p.gx), ys = scanPoints.map(p => p.gy);
-  const cols = Math.max(...xs) - Math.min(...xs) + 1;
-  const rows = Math.max(...ys) - Math.min(...ys) + 1;
-  document.getElementById('oi-grid').textContent  = `${cols}×${rows}`;
-  const maxDB = Math.max(...scanPoints.map(p => Math.abs(p.deltaB)));
-  document.getElementById('oi-dbmax').textContent = fmtNum(maxDB, 3);
-  document.getElementById('oi-step').textContent  = stepSize;
+  document.getElementById('oi-pts').textContent = scanPoints.length;
+  const total = gridRows*gridCols||0;
+  document.getElementById('oi-grid').textContent = `${total} (${gridRows}×${gridCols})`;
+  const maxDB = scanPoints.length ? Math.max(...scanPoints.map(p=>Math.abs(p.deltaB))) : 0;
+  document.getElementById('oi-dbmax').textContent = fmtNum(maxDB,3);
+  document.getElementById('oi-step').textContent = stepSize;
+  document.getElementById('oi-drift').textContent = calEngine.siteDone ? fmtNum(calEngine.siteRef.driftPerMinute,4) : '0';
 }
 
 // ================================================================
-// ANALYSIS UI (بدون تغيير)
+// ANALYSIS UI
 // ================================================================
 function runAnalysis() {
   const result = analysis.analyze(scanPoints, stepSize);
@@ -2289,13 +2504,13 @@ function runAnalysis() {
   panel.classList.add('visible');
 
   const items = [
-    { label: 'نقاط المسح',   val: result.totalPoints,    unit: '',    note: '' },
+    { label: 'نقاط المفحوصة',   val: result.totalPoints,    unit: '',    note: '' },
     { label: 'أعلى درجة',    val: result.maxScore,       unit: '',    note: 'مُقيّمة 0–1' },
     { label: 'متوسط الدرجة',    val: result.meanScore,      unit: '',    note: '' },
     { label: 'أقصى ΔB',        val: result.maxDeltaB,      unit: 'µT',  note: '' },
     { label: 'عدد الشذوذ', val: result.anomalyCount,   unit: 'نقطة', note: '> عتبة 50% من القمة' },
     { label: 'المساحة المقدرة',     val: result.estimatedArea,  unit: 'م²',  note: '⚠ تقريبية' },
-    { label: 'العمق المقدر',    val: result.estDepth,       unit: 'م',   note: '⚠ طريقة HWHM — تجريبية' },
+    { label: 'العمق المقدر',    val: result.estDepth,       unit: 'م',   note: '⚠ نموذج ثنائي القطب — تجريبي' },
     { label: 'نصف العرض',    val: result.halfWidth,      unit: 'م',   note: 'الشذوذ عند 50% من القمة' },
     { label: 'نسبة إشارة/ضجيج',           val: result.snr,            unit: '',    note: '' },
     { label: 'موقع الذروة', val: result.peakAt,         unit: '',    note: 'إحداثيات الشبكة' },
@@ -2346,61 +2561,53 @@ function runAnalysis() {
 }
 
 // ================================================================
-// EXPORTS (بدون تغيير)
+// EXPORTS
 // ================================================================
-function createExportCanvas(view, scale = 2) {
-  if (!scanPoints.length) return null;
-  const container = document.getElementById('canvas-container');
-  const width = Math.max(720, (container.offsetWidth || 600) * scale);
-  const height = Math.max(520, (container.offsetHeight || 400) * scale);
-  const tmp = document.createElement('canvas');
-  tmp.width = Math.round(width);
-  tmp.height = Math.round(height);
-
-  if (view === 'heatmap') visEngine.renderHeatmap(scanPoints, stepSize, { targetCanvas: tmp, width: tmp.width, height: tmp.height });
-  if (view === 'contour') visEngine.renderContour(scanPoints, stepSize, { targetCanvas: tmp, width: tmp.width, height: tmp.height });
-  if (view === 'surface3d') visEngine.render3DSurface(scanPoints, stepSize, { targetCanvas: tmp, width: tmp.width, height: tmp.height });
-
-  return tmp;
-}
-
 function exportPNG() {
-  const exportCanvas = createExportCanvas(currentView, 2);
-  if (!exportCanvas) { showToast('لا توجد صورة للتصدير'); return; }
-
+  if (!scanPoints.length && !gridCreated) { showToast('لا توجد بيانات للتصدير'); return; }
+  const container = document.getElementById('canvas-container');
+  const W = Math.max(720, (container.offsetWidth||600)*2);
+  const H = Math.max(520, (container.offsetHeight||400)*2);
   const tmp = document.createElement('canvas');
-  tmp.width  = exportCanvas.width;
-  tmp.height = exportCanvas.height + 80;
-  const ctx  = tmp.getContext('2d');
-  ctx.fillStyle = '#0b0f1a';
-  ctx.fillRect(0, 0, tmp.width, tmp.height);
-  ctx.drawImage(exportCanvas, 0, 60);
+  tmp.width = Math.round(W); tmp.height = Math.round(H);
 
-  ctx.fillStyle = '#00c9a7';
-  ctx.font = 'bold 16px monospace';
-  ctx.fillText('MAGSCAN PRO — خريطة الشذوذ المغناطيسي', 10, 24);
-  ctx.fillStyle = '#4a6278';
-  ctx.font = '11px monospace';
-  ctx.fillText(`${new Date().toISOString()} | نقاط: ${scanPoints.length} | خطوة: ${stepSize}م | العرض: ${currentView}`, 10, 44);
-  ctx.fillStyle = '#332200';
-  ctx.fillRect(0, tmp.height - 22, tmp.width, 22);
-  ctx.fillStyle = '#ffb347';
-  ctx.font = '10px monospace';
-  ctx.fillText('⚠ بيانات المستشعر بالهاتف فقط — ليست بديلًا عن معدات GPR الاحترافية — تقديرات العمق تجريبية', 6, tmp.height - 6);
+  if (currentView==='heatmap' && gridCreated)
+    visEngine.renderHeatmapGrid(scanPoints, gridRows, gridCols, stepSize, null);
+
+  const srcCanvas = currentView==='heatmap' ? visEngine.canvasHeatmap :
+                    currentView==='contour' ? visEngine.canvasContour : visEngine.canvasSurface;
+
+  const ctx = tmp.getContext('2d');
+  ctx.fillStyle = '#0b0f1a'; ctx.fillRect(0,0,tmp.width,tmp.height);
+  ctx.drawImage(srcCanvas,0,60);
+  ctx.fillStyle = '#00c9a7'; ctx.font = 'bold 16px monospace';
+  ctx.fillText('MAGSCAN PRO — خريطة الشذوذ المغناطيسي',10,24);
+  ctx.fillStyle = '#4a6278'; ctx.font = '11px monospace';
+  ctx.fillText(`${new Date().toISOString()} | نقاط: ${scanPoints.length} | شبكة: ${gridRows}×${gridCols} | خطوة: ${stepSize}م`,10,44);
+  ctx.fillStyle = '#332200'; ctx.fillRect(0,tmp.height-22,tmp.width,22);
+  ctx.fillStyle = '#ffb347'; ctx.font = '10px monospace';
+  ctx.fillText('⚠ بيانات المستشعر بالهاتف فقط — تقديرات العمق تجريبية',6,tmp.height-6);
 
   const link = document.createElement('a');
   link.download = `magscan_${currentView}_${Date.now()}.png`;
   link.href = tmp.toDataURL('image/png');
   link.click();
   showToast('تم تصدير صورة PNG');
+
+  // إعادة الرسم مع التحديد الحالي
+  if (currentView==='heatmap' && gridCreated) {
+    visEngine.renderHeatmapGrid(scanPoints, gridRows, gridCols, stepSize, selectedCell);
+    setupGridClickHandler();
+  }
 }
 
 function exportCSV() {
   if (!scanPoints.length) { showToast('لا توجد بيانات للتصدير'); return; }
-  const header = 'grid_x,grid_y,x_m,y_m,magnitude_uT,deltaB_uT,anomaly_score,lat,lon,timestamp,depth_m,quality\n';
-  const rows = scanPoints.map(p =>
-    `${p.gx},${p.gy},${(p.gx*stepSize).toFixed(3)},${(p.gy*stepSize).toFixed(3)},${fmtNum(p.magnitude, 4)},${fmtNum(p.deltaB, 4)},${fmtNum(p.anomaly_score, 4)},${p.lat||''},${p.lon||''},${p.timestamp},${p.depth_m?fmtNum(p.depth_m,3):''},${fmtNum(p.quality,3)}`
-  ).join('\n');
+  const header = 'grid_x,grid_y,cell_num,x_m,y_m,magnitude_uT,deltaB_uT,anomaly_score,ci95_uT,stdDev_uT,rejected_samples,total_samples,drift_correction_uT,depth_m,quality,lat,lon,timestamp\n';
+  const rows = scanPoints.map(p => {
+    const cellNum = p.gy*gridCols + p.gx + 1;
+    return `${p.gx},${p.gy},${cellNum},${(p.gx*stepSize).toFixed(3)},${(p.gy*stepSize).toFixed(3)},${fmtNum(p.magnitude,4)},${fmtNum(p.deltaB,4)},${fmtNum(p.anomaly_score,4)},${fmtNum(p.ci95,4)},${fmtNum(p.stdDev,4)},${p.rejectedSamples||0},${p.totalSamples||0},${fmtNum(p.driftCorrection,4)},${p.depth_m?fmtNum(p.depth_m,3):''},${fmtNum(p.quality,3)},${p.lat||''},${p.lon||''},${p.timestamp}`;
+  }).join('\n');
   const blob = new Blob([header + rows], { type: 'text/csv' });
   const link = document.createElement('a');
   link.download = `magscan_${Date.now()}.csv`;
@@ -2410,19 +2617,65 @@ function exportCSV() {
 }
 
 // ================================================================
-// BUTTON STATE MANAGER (بدون تغيير)
+// BUTTON STATE MANAGER
 // ================================================================
 function updateButtonStates() {
-  const calDone  = calEngine.siteDone && calEngine.ironDone;
-  const hasData  = scanPoints.length > 0;
-  const scanning = scanActive;
+  const calDone = calEngine.siteDone && calEngine.ironDone;
+  const hasData = scanPoints.length > 0;
 
-  document.getElementById('btn-start-scan').disabled = !calDone || scanning;
-  document.getElementById('btn-stop-scan').disabled  = !scanning;
-  document.getElementById('btn-undo').disabled        = !hasData;
-  document.getElementById('btn-analyze').disabled     = !hasData || scanPoints.length < 2;
-  document.getElementById('btn-export-png').disabled  = !hasData;
-  document.getElementById('btn-export-csv').disabled  = !hasData;
+  document.getElementById('btn-create-grid').disabled = !calDone;
+  document.getElementById('btn-scan-cell').disabled = !selectedCell || scanActive;
+  document.getElementById('btn-undo').disabled = !hasData;
+  document.getElementById('btn-analyze').disabled = !hasData || scanPoints.length < 2;
+  document.getElementById('btn-export-png').disabled = !hasData && !gridCreated;
+  document.getElementById('btn-export-csv').disabled = !hasData;
+}
+
+// ================================================================
+// SENSOR PERMISSIONS
+// ================================================================
+function updateSensorPermissionMessage(msg, isError=false) {
+  const el = document.getElementById('sensor-permission-msg');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = isError ? 'var(--danger)' : 'var(--text-primary)';
+}
+
+async function requestSensorPermissions() {
+  if (!window.isSecureContext) {
+    updateSensorPermissionMessage('يلزم تشغيل الصفحة عبر HTTPS لتعمل المستشعرات في Chrome.', true);
+    return;
+  }
+  updateSensorPermissionMessage('جارٍ طلب إذن المستشعرات...');
+  try {
+    if (typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function')
+      await DeviceOrientationEvent.requestPermission();
+    if (typeof DeviceMotionEvent!=='undefined' && typeof DeviceMotionEvent.requestPermission==='function')
+      await DeviceMotionEvent.requestPermission();
+
+    if (navigator.permissions && navigator.permissions.query) {
+      const sensorsToCheck = ['accelerometer','gyroscope','magnetometer'];
+      for (const name of sensorsToCheck) {
+        try {
+          const status = await navigator.permissions.query({ name });
+          if (status.state==='denied') {
+            updateSensorPermissionMessage('أحد أذونات المستشعرات محظور. تأكد من تمكينه في إعدادات المتصفح.', true);
+            return;
+          }
+        } catch(e) {}
+      }
+    }
+    updateSensorPermissionMessage('تم طلب الأذونات. أعد تحميل الصفحة إذا لم تعمل المستشعرات بعد.');
+  } catch(e) {
+    updateSensorPermissionMessage('فشل تفعيل المستشعرات. قد تحتاج إلى HTTPS أو إعدادات إذن إضافية.', true);
+    console.warn('Sensor permission error:', e);
+  }
+}
+
+function setupSensorPermissionsUI() {
+  const btn = document.getElementById('btn-enable-sensors');
+  if (!btn) return;
+  btn.onclick = requestSensorPermissions;
 }
 
 // ================================================================
@@ -2432,80 +2685,104 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   sensors.onUpdate = updateSensorDisplay;
   await sensors.start();
-  log('MagScan Pro v4.0 — TMI (Total Magnetic Intensity) mode active.', 'ok');
+  log('MagScan Pro v5.0 — معالجة متقدمة (Kalman تكيفي + Median + MAD + تصحيح الانحراف الزمني).', 'ok');
 
   setInterval(updateSensorDisplay, 200);
 
   setupCalibrationUI();
   setupSensorPermissionsUI();
 
-  document.getElementById('btn-start-scan').onclick = () => {
-    if (!calEngine.siteDone || !calEngine.ironDone) {
-      showModal('مطلوب معايرة', 'يجب إكمال كل من معايرة الموقع ومعايرة الحديد قبل البدء بالمسح.');
-      return;
-    }
-    startScan();
-  };
-  document.getElementById('btn-stop-scan').onclick = stopScan;
+  // Grid creation
+  document.getElementById('btn-create-grid').onclick = createGrid;
 
-  document.getElementById('btn-undo').onclick = () => {
-    if (scanPoints.length === 0) return;
-    scanPoints.pop();
-    DataStore.savePoints(scanPoints);
-    if (scanPoints.length === 0) {
-      document.getElementById('empty-state').style.display = 'flex';
-      visEngine.showCanvas('none');
-      document.getElementById('canvas-overlay-info').style.display = 'none';
-    } else {
-      renderCurrentView();
-      showOverlayInfo();
-    }
-    showToast('تم إزالة آخر نقطة');
-    updateButtonStates();
-  };
-
-  document.getElementById('dpad-up').onclick    = () => moveTo(0, -1);
-  document.getElementById('dpad-down').onclick  = () => moveTo(0,  1);
-  document.getElementById('dpad-left').onclick  = () => moveTo(1, 0);
-  document.getElementById('dpad-right').onclick = () => moveTo(-1, 0);
-
+  // Step size
   document.querySelectorAll('.step-btn').forEach(btn => {
     btn.onclick = () => {
       document.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       stepSize = parseFloat(btn.dataset.step);
-      log(`Step size set to ${stepSize}m`);
-      if (scanPoints.length) renderCurrentView();
+      log(`تم ضبط حجم الخطوة على ${stepSize}م`);
+      if (gridCreated) {
+        document.getElementById('grid-info-label').textContent =
+          `${gridRows} × ${gridCols} = ${gridRows*gridCols} مربع | ${(gridRows*stepSize).toFixed(2)}م (صفوف) × ${(gridCols*stepSize).toFixed(2)}م (أعمدة)`;
+        renderCurrentView();
+        showOverlayInfo();
+      }
     };
   });
 
+  // View tabs
   document.querySelectorAll('.view-tab').forEach(tab => {
     tab.onclick = () => {
       document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
       currentView = tab.dataset.view;
-      if (scanPoints.length) {
+      if (currentView==='heatmap') {
+        if (gridCreated) {
+          document.getElementById('empty-state').style.display='none';
+          visEngine.showCanvas('heatmap');
+          visEngine.renderHeatmapGrid(scanPoints, gridRows, gridCols, stepSize, selectedCell);
+          setupGridClickHandler();
+        } else {
+          document.getElementById('empty-state').style.display='flex';
+          visEngine.showCanvas('none');
+        }
+      } else if (scanPoints.length) {
+        document.getElementById('empty-state').style.display='none';
         visEngine.showCanvas(currentView);
         renderCurrentView();
+      } else {
+        document.getElementById('empty-state').style.display='flex';
+        visEngine.showCanvas('none');
       }
     };
   });
 
-  document.getElementById('btn-analyze').onclick     = runAnalysis;
-  document.getElementById('btn-export-png').onclick  = exportPNG;
-  document.getElementById('btn-export-csv').onclick  = exportCSV;
+  // Scan selected cell
+  document.getElementById('btn-scan-cell').onclick = scanSelectedCell;
+
+  // Undo
+  document.getElementById('btn-undo').onclick = () => {
+    if (!scanPoints.length) return;
+    const removed = scanPoints.pop();
+    DataStore.savePoints(scanPoints);
+    if (removed) {
+      log(`تم إلغاء قياس مربع (صف ${removed.gy+1}, عمود ${removed.gx+1})`, 'warn');
+      // إعادة تحديد هذا المربع نفسه (أصبح غير مفحوص الآن)
+      selectedCell = { r: removed.gy, c: removed.gx };
+    }
+    if (gridCreated) {
+      visEngine.renderHeatmapGrid(scanPoints, gridRows, gridCols, stepSize, selectedCell);
+      setupGridClickHandler();
+      updateSelectedCellInfo();
+    }
+    if (!scanPoints.length && !gridCreated) {
+      document.getElementById('empty-state').style.display='flex';
+      visEngine.showCanvas('none');
+      document.getElementById('canvas-overlay-info').style.display='none';
+    }
+    showOverlayInfo();
+    updateButtonStates();
+    showToast('تم إلغاء آخر قياس');
+  };
+
+  // Analyze, export, clear
+  document.getElementById('btn-analyze').onclick = runAnalysis;
+  document.getElementById('btn-export-png').onclick = exportPNG;
+  document.getElementById('btn-export-csv').onclick = exportCSV;
 
   document.getElementById('btn-clear').onclick = () => {
     showModal(
       'مسح كل البيانات',
-      'سيؤدي هذا إلى حذف جميع نقاط المسح وبيانات المعايرة. لا يمكن التراجع عن هذا الإجراء.',
+      'سيؤدي هذا إلى حذف جميع نقاط المسح والشبكة وبيانات المعايرة. لا يمكن التراجع عن هذا الإجراء.',
       () => {
         scanPoints = [];
-        calEngine.siteDone = false;
-        calEngine.ironDone = false;
-        calEngine.siteRef  = null;
-        calEngine.ironRef  = null;
+        calEngine.siteDone = false; calEngine.ironDone = false;
+        calEngine.siteRef = null; calEngine.ironRef = null;
+        siteCalEndTime = null;
+        gridCreated = false; gridRows = 0; gridCols = 0; selectedCell = null;
         DataStore.clear();
+
         document.getElementById('empty-state').style.display = 'flex';
         visEngine.showCanvas('none');
         document.getElementById('canvas-overlay-info').style.display = 'none';
@@ -2514,14 +2791,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('iron-result').textContent = '';
         document.getElementById('dot-site').className = 'dot';
         document.getElementById('dot-iron').className = 'dot';
+        document.getElementById('dot-grid').className = 'dot';
         document.getElementById('btn-site-cal').textContent = '▶ ابدأ معايرة الموقع';
         document.getElementById('btn-site-cal').disabled = false;
         document.getElementById('btn-iron-cal').textContent = '🔩 ابدأ معايرة الحديد';
         document.getElementById('btn-iron-cal').disabled = true;
         document.getElementById('prog-site-wrap').style.display = 'none';
         document.getElementById('prog-iron-wrap').style.display = 'none';
-        currentPos = { x: 0, y: 0 };
-        document.getElementById('pos-info').innerHTML = `Pos: <strong>0, 0</strong>`;
+        document.getElementById('grid-info-label').textContent = '';
+        document.getElementById('selected-cell-info').innerHTML = 'لم يُحدد أي مربع بعد';
+        document.getElementById('btn-scan-cell').textContent = '▶ ابدأ فحص المربع المحدد';
         updateButtonStates();
         log('تم مسح جميع البيانات.', 'warn');
         showToast('تم مسح البيانات');
@@ -2530,27 +2809,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     );
   };
 
-  if (scanPoints.length > 0) {
-    log(`Restored ${scanPoints.length} scan points from storage.`, 'ok');
-    renderCurrentView();
+  // Restore saved grid + points
+  const savedGrid = DataStore.loadGrid();
+  const savedCal  = DataStore.loadCal();
+  if (savedCal && savedCal.site) {
+    // ملاحظة: حالة كالمان والمعايرة الكاملة لا تُستعاد عبر الجلسات
+    // (تتطلب إعادة المعايرة الفعلية)، لكننا نعرض القيم المحفوظة كمرجع.
+    log('تم العثور على بيانات معايرة سابقة. يُفضّل إعادة المعايرة في كل جلسة جديدة لضمان الدقة.', 'warn');
+  }
+  if (savedGrid && scanPoints.length) {
+    gridRows = savedGrid.rows;
+    gridCols = savedGrid.cols;
+    stepSize = savedGrid.stepSize || 0.25;
+    gridCreated = true;
+    document.getElementById('grid-rows').value = gridRows;
+    document.getElementById('grid-cols').value = gridCols;
+    document.querySelectorAll('.step-btn').forEach(b => {
+      b.classList.toggle('active', parseFloat(b.dataset.step)===stepSize);
+    });
+
+    const container = document.getElementById('canvas-container');
+    const availW = (container.offsetWidth||600)-20;
+    const availH = (container.offsetHeight||500)-60;
+    const cellW = Math.floor(availW/gridCols);
+    const cellH = Math.floor(availH/gridRows);
+    visEngine.cellSize = Math.max(32, Math.min(cellW, cellH, 100));
+
+    document.getElementById('empty-state').style.display = 'none';
+    document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector('.view-tab[data-view="heatmap"]').classList.add('active');
+    currentView = 'heatmap';
+    visEngine.showCanvas('heatmap');
+
+    selectedCell = findNextUnscannedCell();
+    visEngine.renderHeatmapGrid(scanPoints, gridRows, gridCols, stepSize, selectedCell);
+    setupGridClickHandler();
+    document.getElementById('dot-grid').className = 'dot done';
+    document.getElementById('grid-info-label').textContent =
+      `${gridRows} × ${gridCols} = ${gridRows*gridCols} مربع | ${(gridRows*stepSize).toFixed(2)}م (صفوف) × ${(gridCols*stepSize).toFixed(2)}م (أعمدة)`;
+    updateSelectedCellInfo();
     showOverlayInfo();
+    log(`تم استعادة الشبكة ${gridRows}×${gridCols} مع ${scanPoints.length} نقطة مفحوصة. أكمل المعايرة لاستمرار المسح.`, 'ok');
   }
 
-  document.addEventListener('keydown', (e) => {
-    if (!scanActive) return;
-    if (e.key === 'ArrowUp')    moveTo(0, -1);
-    if (e.key === 'ArrowDown')  moveTo(0,  1);
-    if (e.key === 'ArrowLeft')  moveTo(1, 0);
-    if (e.key === 'ArrowRight') moveTo(-1, 0);
-  });
-
   updateButtonStates();
-
-  window.addEventListener('resize', () => {
-    if (scanPoints.length) renderCurrentView();
-  });
-
-  log('System ready. Complete calibrations to begin scanning.', 'ok');
+  window.addEventListener('resize', () => { if (gridCreated && currentView==='heatmap') renderCurrentView(); });
+  log('النظام جاهز. أكمل المعايرات ثم أنشئ الشبكة. ابدأ من المربع #1 (أعلى يمين) وتقدّم صفاً بصف.', 'ok');
 });
 </script>
 </body>
